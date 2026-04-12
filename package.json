@@ -1,0 +1,49 @@
+{
+  "name": "rpg-iii-language-support",
+  "displayName": "RPG-III Language Support",
+  "description": "Adds support for RPG-III syntax in VSCode — syntax highlighting, Go-to-Definition, code folding, and document outline",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.113.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "main": "./out/extension",
+  "scripts": {
+    "vscode:prepublish": "tsc -p ./",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.113.0",
+    "typescript": "^5.0.0"
+  },
+  "contributes": {
+    "languages": [{
+      "id": "rpg",
+      "aliases": ["RPG-III", "RPG", "rpg"],
+      "extensions": [".rpg", ".RPG"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "rpg",
+      "scopeName": "source.rpg",
+      "path": "./syntaxes/rpg.tmLanguage.json"
+    }],
+    "semanticTokenScopes": [{
+      "language": "rpg",
+      "scopes": {
+        "type": ["entity.name.type.rpg"],
+        "type.declaration": ["entity.name.type.rpg", "entity.name.class.rpg"],
+        "variable": ["variable.other.rpg"],
+        "variable.declaration": ["variable.other.definition.rpg"],
+        "variable.definition": ["variable.other.definition.rpg"],
+        "function": ["entity.name.function.rpg"],
+        "function.declaration": ["entity.name.function.rpg"],
+        "parameter": ["variable.parameter.rpg"]
+      }
+    }]
+  }
+}

@@ -1,0 +1,309 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "RPG-III",
+    "scopeName": "source.rpg",
+    "patterns": [
+        { "include": "#compile-time-data" },
+        { "include": "#comments" },
+        { "include": "#precompiler" },
+        { "include": "#sql" },
+        { "include": "#gutter" },
+        { "include": "#spec-letter" },
+        { "include": "#f-spec" },
+        { "include": "#e-spec" },
+        { "include": "#i-spec" },
+        { "include": "#c-spec" },
+        { "include": "#o-spec" },
+        { "include": "#system-constants" },
+        { "include": "#indicators" },
+        { "include": "#strings" },
+        { "include": "#numerics" }
+    ],
+    "repository": {
+
+        "compile-time-data": {
+            "comment": "Compile-time array data: lines starting with **",
+            "patterns": [{
+                "name": "comment.block.documentation.rpg.ctdata",
+                "begin": "^(\\*{2})(?!free)",
+                "end": "^(\\*{2})",
+                "beginCaptures": {
+                    "1": { "name": "punctuation.definition.comment.rpg" }
+                },
+                "endCaptures": {
+                    "1": { "name": "punctuation.definition.comment.rpg" }
+                }
+            }]
+        },
+
+        "comments": {
+            "patterns": [
+                {
+                    "comment": "Spec comment: col 7 is * (col 6 in 0-index is the spec type, col 7 = index 6 is *)",
+                    "name": "comment.line.asterisk.rpg",
+                    "match": "(?i)^.{5}[A-Z*]\\*.*$"
+                },
+                {
+                    "comment": "Trailing comments: anything past the usable columns for each spec",
+                    "name": "comment.line.trailing.rpg",
+                    "match": "(?i)(?<=((?<=^.{5}[FLIO]).{68})|(?<=^.{5}E.{51})|(?<=^.{5}C.{53})).*$"
+                }
+            ]
+        },
+
+        "gutter": {
+            "comment": "Sequence / page number in columns 1-5",
+            "patterns": [{
+                "name": "comment.line.gutter.rpg",
+                "match": "^.{5}"
+            }]
+        },
+
+        "spec-letter": {
+            "comment": "Spec type letter in column 6 (0-indexed col 5)",
+            "patterns": [{
+                "name": "storage.type.spec.rpg",
+                "match": "(?<=^.{5})[HFELICOhfelico](?!\\*)"
+            }]
+        },
+
+        "precompiler": {
+            "patterns": [
+                {
+                    "name": "meta.preprocessor.rpg",
+                    "begin": "(?i)^.{5}[CH ]?\\/TITLE",
+                    "end": "$",
+                    "patterns": [{
+                        "name": "comment.line.rpg.title",
+                        "match": ".*"
+                    }]
+                },
+                {
+                    "name": "meta.preprocessor.copy.rpg",
+                    "begin": "(?i)^.{5}[C ]?\\/COPY\\s",
+                    "end": "$",
+                    "patterns": [
+                        {
+                            "name": "string.unquoted.rpg.copy-member",
+                            "match": "\\S+"
+                        }
+                    ]
+                },
+                {
+                    "name": "meta.preprocessor.rpg",
+                    "match": "(?i)^.{0,5}.\\/(EJECT|SPACE|FREE|END-FREE)"
+                }
+            ]
+        },
+
+        "f-spec": {
+            "comment": "F-spec (File description): highlight filename and device",
+            "patterns": [
+                {
+                    "comment": "Filename in F-spec cols 7-14 (index 6-13)",
+                    "name": "entity.name.type.file.rpg",
+                    "match": "(?<=^.{6})(\\w+)(?=.{0,7}(?:I|O|U|C))"
+                },
+                {
+                    "comment": "Device keyword in F-spec",
+                    "name": "support.type.device.rpg",
+                    "match": "(?i)(?<=^.{5}F.{32})(WORKSTN|PRINTER|SPECIAL|DISK|SEQ)"
+                },
+                {
+                    "comment": "File type and designation chars",
+                    "name": "constant.language.rpg.f.type",
+                    "match": "(?i)(?<=^.{5}F.{8})[IOUC]"
+                },
+                {
+                    "comment": "File format (F=program described, E=externally described)",
+                    "name": "constant.language.rpg.f.format",
+                    "match": "(?i)(?<=^.{5}F.{12})[FE]"
+                }
+            ]
+        },
+
+        "e-spec": {
+            "comment": "E-spec (Extension): array/table definitions",
+            "patterns": [
+                {
+                    "comment": "Array name in E-spec cols 27-32 (index 26-31)",
+                    "name": "entity.name.type.array.rpg",
+                    "match": "(?<=^.{5}E.{20})(\\w+)"
+                }
+            ]
+        },
+
+        "i-spec": {
+            "comment": "I-spec (Input): data structures and field definitions",
+            "patterns": [
+                {
+                    "comment": "DS keyword at cols 19-20 (index 18-19)",
+                    "name": "keyword.declaration.struct.rpg",
+                    "match": "(?i)(?<=^.{5}I.{12})DS"
+                },
+                {
+                    "comment": "Data structure name (filename area when DS is present)",
+                    "name": "entity.name.type.ds.rpg",
+                    "match": "(?i)(?<=^.{6})(\\w+)(?=.{6,12}DS)"
+                },
+                {
+                    "comment": "Field name in I-spec cols 53-58 (index 52-57) — on field definition lines",
+                    "name": "variable.other.rpg.field",
+                    "match": "(?i)(?<=^.{5}I.{46})(\\w+)"
+                },
+                {
+                    "comment": "Data type P/B/L/R in I-spec col 43 (index 42)",
+                    "name": "storage.type.data.rpg",
+                    "match": "(?i)(?<=^.{5}I.{36})[PBLR](?=[0-9\\s]{4})"
+                }
+            ]
+        },
+
+        "c-spec": {
+            "comment": "C-spec (Calculation): opcodes and structured operations",
+            "patterns": [
+                {
+                    "comment": "Control level and conditioning indicators",
+                    "name": "constant.language.rpg.c.level",
+                    "match": "(?i)(?<=^.{5}C)((L([1-9O]|R))|SR|AN|OR)(?=.{5})"
+                },
+                {
+                    "comment": "Structured operations: IF/WH/DO/CAB/CAS + comparison suffix",
+                    "name": "keyword.control.rpg",
+                    "match": "(?i)(?<=^.{5}C.{21})(IF|WH|DOW|DOU|DO|CAB|CAS|AND|OR|SEL)(GT|LT|EQ|NE|GE|LE|EC)"
+                },
+                {
+                    "comment": "Block end keywords",
+                    "name": "keyword.control.end.rpg",
+                    "match": "(?i)(?<=^.{5}C.{21})(ENDDO|ENDIF|ENDCS|ENDSL|ENDSR|ELSE|OTHER|WHEN)"
+                },
+                {
+                    "comment": "All other operation codes",
+                    "name": "keyword.operator.rpg",
+                    "match": "(?i)(?<=^.{5}C.{21})(Z-SUB|Z-ADD|XLATE|XFOOT|WRITE|UPDAT|UNLCK|TIME|TESTZ|TESTN|TESTB|TAG|SUBST|SUB|SQRT|SORTA|SHTDN|SETON|SETOF|SETLL|SETGT|SCAN|ROLBK|RETRN|RESET|REL|REDPE|READP|READE|READC|READ|POST|PLIST|PARM|OUT|OPEN|OCUR|NEXT|MVR|MULT|MOVEL|MOVEA|MOVE|MLLZO|MLHZO|MHLZO|MHHZO|LOKUP|LOKUP|LEAVE|KLIST|KFLD|ITER|IN|GOTO|FREE|FORCE|FEOD|EXSR|EXFMT|EXCPT|ENDSR|BEGSR|DUMP|DSPLY|DIV|DELET|DEFN|DEBUG|COMP|COMIT|CLOSE|CLEAR|CHEKR|CHECK|CHAIN|CAT|CALL|BITON|BITOF|ADD|ACQ)"
+                },
+                {
+                    "comment": "Numeric literal in Factor 1 area (takes priority over variable pattern)",
+                    "name": "constant.numeric.rpg",
+                    "match": "(?<=^.{5}C.{11})-?[0-9]+\\.?[0-9]*"
+                },
+                {
+                    "comment": "Factor 1 area (cols 18-27, index 17-26) — array,index or plain identifier",
+                    "match": "(?<=^.{5}C.{11})([\\$#@*]?[\\w#@$]+)(?:,([\\w]+))?",
+                    "captures": {
+                        "1": { "name": "variable.other.rpg.factor1" },
+                        "2": { "name": "variable.other.rpg.array.index" }
+                    }
+                },
+                {
+                    "comment": "Numeric literal in Factor 2 area (takes priority over variable pattern)",
+                    "name": "constant.numeric.rpg",
+                    "match": "(?<=^.{5}C.{26})-?[0-9]+\\.?[0-9]*"
+                },
+                {
+                    "comment": "Factor 2 area (cols 33-42, index 32-41) — array,index or plain identifier",
+                    "match": "(?<=^.{5}C.{26})([\\$#@*]?[\\w#@$]+)(?:,([\\w]+))?",
+                    "captures": {
+                        "1": { "name": "variable.other.rpg.factor2" },
+                        "2": { "name": "variable.other.rpg.array.index" }
+                    }
+                },
+                {
+                    "comment": "Result field (cols 43-48, index 42-47)",
+                    "name": "variable.other.rpg.result",
+                    "match": "(?<=^.{5}C.{36})([\\$#@*]?[\\w#@$]+)"
+                },
+                {
+                    "comment": "Resulting indicators HI/LO/EQ columns (index 53-58)",
+                    "name": "support.variable.indicator.resulting.rpg",
+                    "match": "(?<=^.{5}C.{47})([0-9]{2}|[0-9]{2}\\s[0-9]{2}|[0-9]{2}\\s[0-9]{2}\\s[0-9]{2})"
+                }
+            ]
+        },
+
+        "o-spec": {
+            "comment": "O-spec (Output): output type and edit codes",
+            "patterns": [
+                {
+                    "comment": "Output type H/D/T/E",
+                    "name": "constant.language.rpg.o.type",
+                    "match": "(?i)(?<=^.{5}O.{8})[HDTE]"
+                },
+                {
+                    "comment": "Edit code",
+                    "name": "constant.language.rpg.o.editcode",
+                    "match": "(?i)(?<=^.{5}O.{31})[0-9ABCDJKLMNOPQXYZ]"
+                }
+            ]
+        },
+
+        "system-constants": {
+            "patterns": [
+                {
+                    "comment": "Built-in named constants",
+                    "name": "support.constant.rpg",
+                    "match": "(?i)\\*\\b(INLR|BLANK|BLANKS|ZERO|ZEROS|HIVAL|LOVAL|ALL|ON|OFF|DATE|TIME|MONTH|DAY|YEAR|CANCL|DETC|DETL|GETIN|INIT|OFL|TERM|TOTC|TOTL|DEFN|ENTRY|INZSR|LDA|LIKE|LOCK|NAMVAR|PDA|PSSR|FILE|EQUATE|PLACE|NOIND|PLACE)\\b"
+                },
+                {
+                    "comment": "System date/time fields (no leading *)",
+                    "name": "support.constant.rpg",
+                    "match": "(?i)\\b(UDATE|UMONTH|UDAY|UYEAR)\\b"
+                }
+            ]
+        },
+
+        "indicators": {
+            "patterns": [{
+                "comment": "*IN with optional 2-digit index",
+                "name": "support.variable.indicator.rpg",
+                "match": "(?i)\\*IN([0-9]{0,2})\\b"
+            }]
+        },
+
+        "strings": {
+            "patterns": [
+                {
+                    "name": "string.other.rpg.hex",
+                    "begin": "(?i)x'",
+                    "end": "'"
+                },
+                {
+                    "name": "string.quoted.single.rpg",
+                    "begin": "'",
+                    "end": "(\n|')"
+                }
+            ]
+        },
+
+        "numerics": {
+            "patterns": [{
+                "name": "constant.numeric.rpg",
+                "match": "\\b([0-9]+\\.?[0-9]*)\\b"
+            }]
+        },
+
+        "sql": {
+            "comment": "Embedded SQL blocks: /EXEC SQL ... /END-EXEC",
+            "patterns": [
+                {
+                    "name": "meta.embedded.sql.rpg",
+                    "begin": "(?i)(?<=^.{5}[C])\\/EXEC\\s+SQL",
+                    "end": "(?i)\\/END-EXEC",
+                    "beginCaptures": {
+                        "0": { "name": "keyword.other.rpg.sql.exec" }
+                    },
+                    "endCaptures": {
+                        "0": { "name": "keyword.other.rpg.sql.end" }
+                    },
+                    "patterns": [
+                        {
+                            "name": "variable.parameter.rpg.sql",
+                            "match": ":[a-zA-Z_][a-zA-Z0-9_]*"
+                        },
+                        { "include": "source.sql" }
+                    ]
+                }
+            ]
+        }
+    }
+}
