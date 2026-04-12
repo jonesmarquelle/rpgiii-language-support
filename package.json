@@ -6,6 +6,10 @@
   "engines": {
     "vscode": "^1.113.0"
   },
+  "repository": {
+  "type": "git",
+  "url": "git://github.com/jonesmarquelle/rpgiii-language-support.git"
+  },
   "categories": [
     "Programming Languages"
   ],
