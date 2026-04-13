@@ -1,6 +1,6 @@
 # RPG-III Language Support
 
-VSCode extension providing language intelligence for IBM RPG-III (fixed-format) source files.
+VSCode extension providing language support for IBM RPG-III (fixed-format) source files.
 
 ## Features
 
@@ -23,8 +23,6 @@ Full tokenization of the RPG-III 80-column fixed-format spec structure:
 - **Compile-time data** — `**` delimited array data blocks
 - **Precompiler directives** — `/COPY`, `/TITLE`, `/EJECT`, `/SPACE`
 
-Array index notation (`ARRAY,INDEX`) is handled in both Factor 1 and Factor 2 — the array name and index each receive their own scope.
-
 ---
 
 ### Go-to-Definition (`F12` / `Ctrl+Click`)
@@ -42,8 +40,6 @@ Context-aware navigation understands which fixed-column field the cursor is in a
 | DS field or record field | I-spec definition line |
 | C-spec variable (result field with a field length) | Most recent assignment at or before the cursor line |
 
-**Position-aware variable resolution** — when a variable like `STR` is re-initialized by multiple `Z-ADD` statements in different code blocks, Go-to-Definition jumps to the closest prior assignment before the cursor, not the first one in the file.
-
 ---
 
 ### Hover Information
@@ -56,23 +52,6 @@ Hovering over any recognized symbol shows a tooltip:
 - **Variables** (C-spec) — declared at line N, declaring opcode
 - **Subroutines** — defined at / ends at line number
 - **Tags** — defined at line number
-- **Indicators** (`*IN...`) — description of indicator usage
-
----
-
-### Semantic Token Coloring
-
-Semantic tokens layer context-aware coloring on top of the baseline grammar, using your theme's semantic color roles:
-
-| Symbol | Token type |
-|---|---|
-| Subroutine name at `BEGSR` / `ENDSR` | `function.declaration` |
-| Subroutine reference in `EXSR` / `CAS*` | `function` |
-| File or array reference | `type` |
-| Field or variable reference | `variable` |
-| Tag definition (`TAG` opcode Factor 1) | `parameter.declaration` |
-| Tag reference (`GOTO` / `CAB*` Factor 2) | `parameter` |
-| DS field declaration | `variable.declaration` |
 
 ---
 
@@ -82,7 +61,6 @@ Click the fold gutter to collapse:
 
 - **Structured blocks** — `IF`/`ENDIF`, `DO`/`ENDDO`, `DOW`/`ENDDO`, `DOU`/`ENDDO`, `SELEC`/`ENDSL`
 - **Subroutines** — `BEGSR`/`ENDSR` pairs
-- **Spec sections** — contiguous runs of F-specs, E-specs, I-specs, O-specs, and H-specs each fold as a group
 
 ---
 
