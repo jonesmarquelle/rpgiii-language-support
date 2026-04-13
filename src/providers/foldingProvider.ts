@@ -26,6 +26,9 @@ const CLOSERS: Record<string, string> = {
 // Opcodes that are interior markers but don't change depth
 const INTERIORS = new Set(['ELSE', 'WHEN', 'OTHER']);
 
+// Openers that END is NOT allowed to close
+const END_EXCLUDED_OPENERS = new Set(['BEGSR']);
+
 interface FoldFrame {
     opcode: string;     // base opcode
     startLine: number;
@@ -69,6 +72,24 @@ export class RpgFoldingProvider implements vscode.FoldingRangeProvider {
                     if (top.startLine < line.lineNumber) {
                         ranges.push(new vscode.FoldingRange(
                             top.startLine,
+                            line.lineNumber,
+                            vscode.FoldingRangeKind.Region,
+                        ));
+                    }
+                }
+            } else if (base === 'END') {
+                // END is a generic closer for IF, DO, DOW, DOU, SELEC — but NOT BEGSR
+                // Walk the stack from top to find the nearest eligible opener
+                let idx = stack.length - 1;
+                while (idx >= 0 && END_EXCLUDED_OPENERS.has(stack[idx].opcode)) {
+                    idx--;
+                }
+                if (idx >= 0) {
+                    const frame = stack[idx];
+                    stack.splice(idx, 1);
+                    if (frame.startLine < line.lineNumber) {
+                        ranges.push(new vscode.FoldingRange(
+                            frame.startLine,
                             line.lineNumber,
                             vscode.FoldingRangeKind.Region,
                         ));

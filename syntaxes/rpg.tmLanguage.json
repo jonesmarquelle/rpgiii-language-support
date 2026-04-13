@@ -41,7 +41,7 @@
                 {
                     "comment": "Spec comment: col 7 is * (col 6 in 0-index is the spec type, col 7 = index 6 is *)",
                     "name": "comment.line.asterisk.rpg",
-                    "match": "(?i)^.{5}[A-Z*]\\*.*$"
+                    "match": "(?i)^.{6}\\*.*$"
                 },
                 {
                     "comment": "Trailing comments: anything past the usable columns for each spec",
@@ -175,7 +175,7 @@
                 {
                     "comment": "Block end keywords",
                     "name": "keyword.control.end.rpg",
-                    "match": "(?i)(?<=^.{5}C.{21})(ENDDO|ENDIF|ENDCS|ENDSL|ENDSR|ELSE|OTHER|WHEN)"
+                    "match": "(?i)(?<=^.{5}C.{21})(ENDDO|ENDIF|ENDCS|ENDSL|ENDSR|ELSE|OTHER|WHEN|END)"
                 },
                 {
                     "comment": "All other operation codes",

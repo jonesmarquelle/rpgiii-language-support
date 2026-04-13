@@ -50,7 +50,7 @@ export function parseDocument(textDoc: vscode.TextDocument): RpgDocument {
         const specChar = raw.length > 5 ? raw[5].toUpperCase() : ' ';
 
         // Comment line: col 7 (index 6) is '*'
-        if (specChar !== ' ' && raw.length > 6 && raw[6] === '*') {
+        if (raw.length > 6 && raw[6] === '*') {
             lines.push({ lineNumber: i, raw, specType: SpecType.Comment, content: null });
             continue;
         }
