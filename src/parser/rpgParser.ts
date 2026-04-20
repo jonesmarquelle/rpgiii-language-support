@@ -10,7 +10,7 @@ import * as vscode from 'vscode';
 import {
     SpecType, ParsedLine, RpgDocument, SymbolTable,
     FileSymbol, ArraySymbol, DataStructureSymbol, FieldSymbol,
-    SubroutineSymbol, TagSymbol,
+    SubroutineSymbol, TagSymbol, KListSymbol,
     colChar,
 } from '../types/rpgTypes';
 import { parseCSpec, parseFSpec, parseISpec, parseESpec } from './lineParser';
@@ -27,6 +27,9 @@ export function parseDocument(textDoc: vscode.TextDocument): RpgDocument {
 
     // Track current data structure for accumulating DS fields
     let currentDs: DataStructureSymbol | null = null;
+
+    // Track current KLIST for accumulating KFLD result fields
+    let currentKList: KListSymbol | null = null;
 
     // Two-pass approach: first pass builds lines + symbols (except subroutine end lines),
     // second pass fills in subroutine end lines and folding ranges.
@@ -182,6 +185,28 @@ export function parseDocument(textDoc: vscode.TextDocument): RpgDocument {
                 const factor1 = content.factor1;
                 const factor2 = content.factor2;
 
+                if (opcode === 'KLIST' && factor1) {
+                    const key = factor1.toUpperCase();
+                    const sym: KListSymbol = {
+                        name: factor1,
+                        definitionLine: i,
+                        definitionRange: lineRange(i, content.factor1Range),
+                        keyFields: [],
+                    };
+                    if (!symbols.klists.has(key)) {
+                        symbols.klists.set(key, sym);
+                    }
+                    currentKList = symbols.klists.get(key)!;
+                } else if (opcode === 'KFLD') {
+                    // KFLD result field is the key field name (no factor1/factor2 used)
+                    if (content.resultField && currentKList) {
+                        currentKList.keyFields.push(content.resultField.toUpperCase());
+                    }
+                } else {
+                    // Any other opcode ends the current KLIST group
+                    currentKList = null;
+                }
+
                 if (opcode === 'BEGSR' && factor1) {
                     const key = factor1.toUpperCase();
                     begsrPending.set(key, i);
@@ -317,6 +342,7 @@ function emptySymbolTable(): SymbolTable {
         variables: new Map(),
         subroutines: new Map(),
         tags: new Map(),
+        klists: new Map(),
     };
 }
 

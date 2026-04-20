@@ -138,6 +138,12 @@ export interface TagSymbol extends BaseSymbol {
     // Defined by TAG opcode — factor1 is the tag name
 }
 
+export interface KListSymbol extends BaseSymbol {
+    // Defined by KLIST opcode — factor1 is the key-list name.
+    // keyFields holds the result-field names of every subsequent KFLD line.
+    keyFields: string[];
+}
+
 // ─── Symbol Table ──────────────────────────────────────────────────────────
 
 export interface SymbolTable {
@@ -148,6 +154,7 @@ export interface SymbolTable {
     variables: Map<string, FieldSymbol[]>;  // C-spec result fields; all occurrences in source order
     subroutines: Map<string, SubroutineSymbol>;
     tags: Map<string, TagSymbol>;
+    klists: Map<string, KListSymbol>;
 }
 
 // ─── Parsed Document ──────────────────────────────────────────────────────

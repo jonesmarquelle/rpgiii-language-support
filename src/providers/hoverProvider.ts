@@ -68,6 +68,19 @@ export class RpgHoverProvider implements vscode.HoverProvider {
             return new vscode.Hover(md, hoverRange);
         }
 
+        // Key list (KLIST)
+        const klist = symbols.klists.get(key);
+        if (klist) {
+            const md = new vscode.MarkdownString();
+            md.appendMarkdown(`**${klist.name}** — Key List\n\n`);
+            md.appendMarkdown(`- Defined at line ${klist.definitionLine + 1}\n`);
+            if (klist.keyFields.length > 0) {
+                md.appendMarkdown(`- Key fields: ${klist.keyFields.join(', ')}\n`);
+            }
+            md.appendMarkdown(`- Used as search argument in \`CHAIN\`, \`SETLL\`, \`SETGT\``);
+            return new vscode.Hover(md, hoverRange);
+        }
+
         // File
         const file = symbols.files.get(key);
         if (file) {

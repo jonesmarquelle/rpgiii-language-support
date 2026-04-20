@@ -41,6 +41,8 @@ const SR_F2_OPS = new Set([
 const SR_F1_OPS = new Set(['BEGSR', 'ENDSR']);
 // Opcodes whose Factor 2 is a tag/label name
 const GOTO_OPS = new Set(['GOTO', 'CAB', 'CABGT', 'CABLT', 'CABEQ', 'CABGE', 'CABLE', 'CABNE']);
+// Opcodes whose Factor 1 can be a KLIST name
+const KLIST_OPS_F1 = new Set(['CHAIN', 'SETLL', 'SETGT', 'READE', 'READPE']);
 
 export class RpgSemanticTokenProvider implements vscode.DocumentSemanticTokensProvider {
     readonly legend = new vscode.SemanticTokensLegend(TOKEN_TYPES, TOKEN_MODIFIERS);
@@ -111,6 +113,12 @@ export class RpgSemanticTokenProvider implements vscode.DocumentSemanticTokensPr
                             } else if (opcode === 'TAG') {
                                 // Tag definition site → parameter declaration
                                 builder.push(lineNumber, s, e - s, TYPE_IDX.parameter, modBit('declaration'));
+                            } else if (opcode === 'KLIST') {
+                                // KLIST definition → function declaration (same colour family as BEGSR)
+                                builder.push(lineNumber, s, e - s, TYPE_IDX.function, modBit('declaration'));
+                            } else if (KLIST_OPS_F1.has(opcode) && symbols.klists.has(f1Key)) {
+                                // CHAIN/SETLL/SETGT using a named key list → function reference
+                                builder.push(lineNumber, s, e - s, TYPE_IDX.function, 0);
                             } else if (symbols.subroutines.has(f1Key)) {
                                 builder.push(lineNumber, s, e - s, TYPE_IDX.function, 0);
                             } else if (symbols.tags.has(f1Key)) {

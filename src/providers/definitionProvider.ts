@@ -26,6 +26,8 @@ const SR_OPS_F2 = new Set(['EXSR', 'CAS', 'CASGT', 'CASLT', 'CASEQ', 'CASGE', 'C
 const SR_OPS_F1 = new Set(['BEGSR', 'ENDSR']);
 // Opcodes whose Factor 2 is a GOTO tag
 const GOTO_OPS = new Set(['GOTO', 'CAB', 'CABGT', 'CABLT', 'CABEQ', 'CABGE', 'CABLE', 'CABNE']);
+// Opcodes whose Factor 1 can be a KLIST name (composite key search argument)
+const KLIST_OPS_F1 = new Set(['CHAIN', 'SETLL', 'SETGT', 'READE', 'READPE']);
 
 export class RpgDefinitionProvider implements vscode.DefinitionProvider {
     provideDefinition(
@@ -77,6 +79,14 @@ export class RpgDefinitionProvider implements vscode.DefinitionProvider {
             if (inFactor1 && SR_OPS_F1.has(opcode)) {
                 // BEGSR / ENDSR — factor1 is the subroutine name
                 const sym = symbols.subroutines.get(baseName);
+                if (sym) {
+                    return new vscode.Location(document.uri, sym.definitionRange);
+                }
+            }
+
+            if (inFactor1 && (opcode === 'KLIST' || KLIST_OPS_F1.has(opcode))) {
+                // KLIST definition line, or file-op using a named key list
+                const sym = symbols.klists.get(baseName);
                 if (sym) {
                     return new vscode.Location(document.uri, sym.definitionRange);
                 }
@@ -147,6 +157,11 @@ export class RpgDefinitionProvider implements vscode.DefinitionProvider {
         const tag = symbols.tags.get(baseName);
         if (tag) {
             return new vscode.Location(document.uri, tag.definitionRange);
+        }
+
+        const klist = symbols.klists.get(baseName);
+        if (klist) {
+            return new vscode.Location(document.uri, klist.definitionRange);
         }
 
         return null;

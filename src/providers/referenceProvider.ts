@@ -3,7 +3,7 @@
  *
  * Find All References for RPG-III symbols.
  * Supports navigation to every use of subroutines, tags, files, arrays,
- * data-structure fields, and variables across all spec types.
+ * data-structure fields, variables, and KLIST key lists across all spec types.
  */
 
 import * as vscode from 'vscode';
@@ -21,8 +21,10 @@ const FILE_OPS = new Set([
 const SR_OPS_F2 = new Set(['EXSR', 'CAS', 'CASGT', 'CASLT', 'CASEQ', 'CASGE', 'CASLE', 'CASNE']);
 const SR_OPS_F1 = new Set(['BEGSR', 'ENDSR']);
 const GOTO_OPS  = new Set(['GOTO', 'CAB', 'CABGT', 'CABLT', 'CABEQ', 'CABGE', 'CABLE', 'CABNE']);
+// Opcodes that accept a KLIST name in Factor 1 as the composite search key
+const KLIST_OPS_F1 = new Set(['CHAIN', 'SETLL', 'SETGT', 'READE', 'READPE']);
 
-const enum SymbolKind { Subroutine, Tag, File, Array, Field, Variable }
+const enum SymbolKind { Subroutine, Tag, File, Array, Field, Variable, KeyList }
 
 /**
  * If the base name of `fieldValue` (the part before any comma, e.g. "ARR" in
@@ -91,11 +93,12 @@ export class RpgReferenceProvider implements vscode.ReferenceProvider {
             const inF1 = chr >= c.factor1Range[0] && chr < c.factor1Range[1];
             const inF2 = chr >= c.factor2Range[0] && chr < c.factor2Range[1];
 
-            if      (inF1 && SR_OPS_F1.has(op))  { kind = SymbolKind.Subroutine; }
-            else if (inF1 && op === 'TAG')         { kind = SymbolKind.Tag; }
-            else if (inF2 && SR_OPS_F2.has(op))   { kind = SymbolKind.Subroutine; }
-            else if (inF2 && GOTO_OPS.has(op))     { kind = SymbolKind.Tag; }
-            else if (inF2 && FILE_OPS.has(op))     { kind = SymbolKind.File; }
+            if      (inF1 && SR_OPS_F1.has(op))         { kind = SymbolKind.Subroutine; }
+            else if (inF1 && op === 'TAG')               { kind = SymbolKind.Tag; }
+            else if (inF1 && (op === 'KLIST' || KLIST_OPS_F1.has(op))) { kind = SymbolKind.KeyList; }
+            else if (inF2 && SR_OPS_F2.has(op))         { kind = SymbolKind.Subroutine; }
+            else if (inF2 && GOTO_OPS.has(op))           { kind = SymbolKind.Tag; }
+            else if (inF2 && FILE_OPS.has(op))           { kind = SymbolKind.File; }
         } else if (parsedLine?.specType === SpecType.File)      { kind = SymbolKind.File; }
         else if   (parsedLine?.specType === SpecType.Extension)  { kind = SymbolKind.Array; }
         else if   (parsedLine?.specType === SpecType.Input)      { kind = SymbolKind.Field; }
@@ -103,6 +106,7 @@ export class RpgReferenceProvider implements vscode.ReferenceProvider {
         // Fallback: consult symbol tables (mirrors definitionProvider priority)
         if (kind === null) {
             if      (symbols.subroutines.has(baseName)) { kind = SymbolKind.Subroutine; }
+            else if (symbols.klists.has(baseName))      { kind = SymbolKind.KeyList; }
             else if (symbols.variables.has(baseName))   { kind = SymbolKind.Variable; }
             else if (symbols.fields.has(baseName))      { kind = SymbolKind.Field; }
             else if (symbols.arrays.has(baseName))      { kind = SymbolKind.Array; }
@@ -174,9 +178,14 @@ export class RpgReferenceProvider implements vscode.ReferenceProvider {
                             if (context.includeDeclaration) {
                                 locations.push(loc(uri, ln, s, e));
                             }
+                        } else if (kind === SymbolKind.KeyList && f1 === baseName) {
+                            // KLIST definition line = declaration; CHAIN/SETLL/SETGT = reference
+                            if (op === 'KLIST' ? context.includeDeclaration : true) {
+                                locations.push(loc(uri, ln, s, e));
+                            }
                         } else if (
                             (kind === SymbolKind.Variable || kind === SymbolKind.Field || kind === SymbolKind.Array)
-                            && !SR_OPS_F1.has(op) && op !== 'TAG'
+                            && !SR_OPS_F1.has(op) && op !== 'TAG' && op !== 'KLIST'
                             && f1 === baseName
                         ) {
                             locations.push(loc(uri, ln, s, e));
@@ -204,8 +213,11 @@ export class RpgReferenceProvider implements vscode.ReferenceProvider {
                     }
 
                     // Result field --------------------------------------------
-                    if (c.resultField && (kind === SymbolKind.Variable || kind === SymbolKind.Field)) {
-                        if (c.resultField.toUpperCase() === baseName) {
+                    // Includes KFLD result fields (key field references, no fieldLen)
+                    // and PARM result fields (variable declaration when fieldLen present)
+                    if (c.resultField) {
+                        const rKey = c.resultField.toUpperCase();
+                        if ((kind === SymbolKind.Variable || kind === SymbolKind.Field) && rKey === baseName) {
                             const [s, e] = c.resultRange;
                             const isDecl = c.fieldLen.length > 0;
                             if (!isDecl || context.includeDeclaration) {
