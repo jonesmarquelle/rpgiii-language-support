@@ -92,6 +92,14 @@ export class RpgDefinitionProvider implements vscode.DefinitionProvider {
                 }
             }
 
+            if (inResult && opcode === 'KFLD') {
+                // KFLD result field is the key field declaration
+                const sym = symbols.kfields.get(baseName);
+                if (sym) {
+                    return new vscode.Location(document.uri, sym.definitionRange);
+                }
+            }
+
             if (inFactor2 && SR_OPS_F2.has(opcode)) {
                 const sym = symbols.subroutines.get(baseName);
                 if (sym) {
@@ -124,6 +132,11 @@ export class RpgDefinitionProvider implements vscode.DefinitionProvider {
         const subroutine = symbols.subroutines.get(baseName);
         if (subroutine) {
             return new vscode.Location(document.uri, subroutine.definitionRange);
+        }
+
+        const kfield = symbols.kfields.get(baseName);
+        if (kfield) {
+            return new vscode.Location(document.uri, kfield.definitionRange);
         }
 
         const varDefs = symbols.variables.get(baseName);

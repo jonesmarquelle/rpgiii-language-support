@@ -82,6 +82,17 @@ export class RpgHoverProvider implements vscode.HoverProvider {
             return new vscode.Hover(md, hoverRange);
         }
 
+        // Key field (KFLD) — check before generic variable/field lookups
+        const kfield = symbols.kfields.get(key);
+        if (kfield) {
+            const md = new vscode.MarkdownString();
+            md.appendMarkdown(`**${kfield.name}** — Key Field\n\n`);
+            md.appendMarkdown(`- Key list: \`${kfield.parentKListName}\`\n`);
+            md.appendMarkdown(`- Position: ${kfield.fieldIndex + 1}\n`);
+            md.appendMarkdown(`- Defined at line ${kfield.definitionLine + 1}`);
+            return new vscode.Hover(md, hoverRange);
+        }
+
         // File
         const file = symbols.files.get(key);
         if (file) {

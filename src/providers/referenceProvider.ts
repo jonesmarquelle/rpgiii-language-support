@@ -24,7 +24,7 @@ const GOTO_OPS  = new Set(['GOTO', 'CAB', 'CABGT', 'CABLT', 'CABEQ', 'CABGE', 'C
 // Opcodes that accept a KLIST name in Factor 1 as the composite search key
 const KLIST_OPS_F1 = new Set(['CHAIN', 'SETLL', 'SETGT', 'READE', 'READPE']);
 
-const enum SymbolKind { Subroutine, Tag, File, Array, Field, Variable, KeyList }
+const enum SymbolKind { Subroutine, Tag, File, Array, Field, Variable, KeyList, KeyField }
 
 /**
  * If the base name of `fieldValue` (the part before any comma, e.g. "ARR" in
@@ -90,15 +90,17 @@ export class RpgReferenceProvider implements vscode.ReferenceProvider {
             const c   = parsedLine.content as CSpecContent;
             const op  = c.opcode;
             const chr = position.character;
-            const inF1 = chr >= c.factor1Range[0] && chr < c.factor1Range[1];
-            const inF2 = chr >= c.factor2Range[0] && chr < c.factor2Range[1];
+            const inF1     = chr >= c.factor1Range[0] && chr < c.factor1Range[1];
+            const inF2     = chr >= c.factor2Range[0] && chr < c.factor2Range[1];
+            const inResult = chr >= 42 && chr < 48;  // result field column
 
             if      (inF1 && SR_OPS_F1.has(op))         { kind = SymbolKind.Subroutine; }
             else if (inF1 && op === 'TAG')               { kind = SymbolKind.Tag; }
             else if (inF1 && (op === 'KLIST' || KLIST_OPS_F1.has(op))) { kind = SymbolKind.KeyList; }
             else if (inF2 && SR_OPS_F2.has(op))         { kind = SymbolKind.Subroutine; }
-            else if (inF2 && GOTO_OPS.has(op))           { kind = SymbolKind.Tag; }
-            else if (inF2 && FILE_OPS.has(op))           { kind = SymbolKind.File; }
+            else if (inF2 && GOTO_OPS.has(op))          { kind = SymbolKind.Tag; }
+            else if (inF2 && FILE_OPS.has(op))          { kind = SymbolKind.File; }
+            else if (inResult && op === 'KFLD')         { kind = SymbolKind.KeyField; }
         } else if (parsedLine?.specType === SpecType.File)      { kind = SymbolKind.File; }
         else if   (parsedLine?.specType === SpecType.Extension)  { kind = SymbolKind.Array; }
         else if   (parsedLine?.specType === SpecType.Input)      { kind = SymbolKind.Field; }
@@ -107,6 +109,7 @@ export class RpgReferenceProvider implements vscode.ReferenceProvider {
         if (kind === null) {
             if      (symbols.subroutines.has(baseName)) { kind = SymbolKind.Subroutine; }
             else if (symbols.klists.has(baseName))      { kind = SymbolKind.KeyList; }
+            else if (symbols.kfields.has(baseName))     { kind = SymbolKind.KeyField; }
             else if (symbols.variables.has(baseName))   { kind = SymbolKind.Variable; }
             else if (symbols.fields.has(baseName))      { kind = SymbolKind.Field; }
             else if (symbols.arrays.has(baseName))      { kind = SymbolKind.Array; }
@@ -148,7 +151,7 @@ export class RpgReferenceProvider implements vscode.ReferenceProvider {
 
                 // ── I-spec: field declaration ─────────────────────────────
                 case SpecType.Input: {
-                    if (kind !== SymbolKind.Field && kind !== SymbolKind.Variable) { break; }
+                    if (kind !== SymbolKind.Field && kind !== SymbolKind.Variable && kind !== SymbolKind.KeyField) { break; }
                     const inp = content as ISpecContent;
                     if (inp && !inp.isDataStructure && inp.fieldName.toUpperCase() === baseName
                             && context.includeDeclaration) {
@@ -184,7 +187,8 @@ export class RpgReferenceProvider implements vscode.ReferenceProvider {
                                 locations.push(loc(uri, ln, s, e));
                             }
                         } else if (
-                            (kind === SymbolKind.Variable || kind === SymbolKind.Field || kind === SymbolKind.Array)
+                            (kind === SymbolKind.Variable || kind === SymbolKind.Field || kind === SymbolKind.Array
+                                || kind === SymbolKind.KeyField)
                             && !SR_OPS_F1.has(op) && op !== 'TAG' && op !== 'KLIST'
                             && f1 === baseName
                         ) {
@@ -204,7 +208,8 @@ export class RpgReferenceProvider implements vscode.ReferenceProvider {
                             } else if (kind === SymbolKind.File && FILE_OPS.has(op)) {
                                 locations.push(loc(uri, ln, s, e));
                             } else if (
-                                (kind === SymbolKind.Variable || kind === SymbolKind.Field || kind === SymbolKind.Array)
+                                (kind === SymbolKind.Variable || kind === SymbolKind.Field || kind === SymbolKind.Array
+                                    || kind === SymbolKind.KeyField)
                                 && !SR_OPS_F2.has(op) && !GOTO_OPS.has(op) && !FILE_OPS.has(op)
                             ) {
                                 locations.push(loc(uri, ln, s, e));
@@ -213,11 +218,16 @@ export class RpgReferenceProvider implements vscode.ReferenceProvider {
                     }
 
                     // Result field --------------------------------------------
-                    // Includes KFLD result fields (key field references, no fieldLen)
-                    // and PARM result fields (variable declaration when fieldLen present)
                     if (c.resultField) {
                         const rKey = c.resultField.toUpperCase();
-                        if ((kind === SymbolKind.Variable || kind === SymbolKind.Field) && rKey === baseName) {
+                        if (kind === SymbolKind.KeyField && rKey === baseName) {
+                            const [s, e] = c.resultRange;
+                            // KFLD result field = declaration; all other result uses = reference
+                            const isDecl = op === 'KFLD';
+                            if (!isDecl || context.includeDeclaration) {
+                                locations.push(loc(uri, ln, s, e));
+                            }
+                        } else if ((kind === SymbolKind.Variable || kind === SymbolKind.Field) && rKey === baseName) {
                             const [s, e] = c.resultRange;
                             const isDecl = c.fieldLen.length > 0;
                             if (!isDecl || context.includeDeclaration) {

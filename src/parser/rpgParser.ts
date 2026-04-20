@@ -10,7 +10,7 @@ import * as vscode from 'vscode';
 import {
     SpecType, ParsedLine, RpgDocument, SymbolTable,
     FileSymbol, ArraySymbol, DataStructureSymbol, FieldSymbol,
-    SubroutineSymbol, TagSymbol, KListSymbol,
+    SubroutineSymbol, TagSymbol, KListSymbol, KFieldSymbol,
     colChar,
 } from '../types/rpgTypes';
 import { parseCSpec, parseFSpec, parseISpec, parseESpec } from './lineParser';
@@ -200,7 +200,17 @@ export function parseDocument(textDoc: vscode.TextDocument): RpgDocument {
                 } else if (opcode === 'KFLD') {
                     // KFLD result field is the key field name (no factor1/factor2 used)
                     if (content.resultField && currentKList) {
-                        currentKList.keyFields.push(content.resultField.toUpperCase());
+                        const fieldKey = content.resultField.toUpperCase();
+                        currentKList.keyFields.push(fieldKey);
+                        if (!symbols.kfields.has(fieldKey)) {
+                            symbols.kfields.set(fieldKey, {
+                                name: content.resultField,
+                                definitionLine: i,
+                                definitionRange: lineRange(i, content.resultRange),
+                                parentKListName: currentKList.name,
+                                fieldIndex: currentKList.keyFields.length - 1,
+                            } satisfies KFieldSymbol);
+                        }
                     }
                 } else {
                     // Any other opcode ends the current KLIST group
@@ -343,6 +353,7 @@ function emptySymbolTable(): SymbolTable {
         subroutines: new Map(),
         tags: new Map(),
         klists: new Map(),
+        kfields: new Map(),
     };
 }
 
