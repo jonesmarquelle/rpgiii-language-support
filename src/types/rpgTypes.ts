@@ -144,6 +144,12 @@ export interface KListSymbol extends BaseSymbol {
     keyFields: string[];
 }
 
+export interface KFieldSymbol extends BaseSymbol {
+    // Defined by KFLD opcode — result field is the key field name.
+    parentKListName: string;  // enclosing KLIST name
+    fieldIndex: number;       // 0-based position within the key list
+}
+
 // ─── Symbol Table ──────────────────────────────────────────────────────────
 
 export interface SymbolTable {
@@ -155,6 +161,7 @@ export interface SymbolTable {
     subroutines: Map<string, SubroutineSymbol>;
     tags: Map<string, TagSymbol>;
     klists: Map<string, KListSymbol>;
+    kfields: Map<string, KFieldSymbol>;  // key field name → first KFLD declaration
 }
 
 // ─── Parsed Document ──────────────────────────────────────────────────────

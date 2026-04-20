@@ -155,7 +155,10 @@ export class RpgSemanticTokenProvider implements vscode.DocumentSemanticTokensPr
                         const [s, e] = c.resultRange;
                         if (e > s) {
                             const rKey = c.resultField.toUpperCase();
-                            if (symbols.fields.has(rKey)) {
+                            if (opcode === 'KFLD' && symbols.kfields.has(rKey)) {
+                                // Key field declaration — parameter colour (distinct from KLIST/function)
+                                builder.push(lineNumber, s, e - s, TYPE_IDX.parameter, modBit('declaration'));
+                            } else if (symbols.fields.has(rKey)) {
                                 builder.push(lineNumber, s, e - s, TYPE_IDX.variable, modBit('definition'));
                             }
                         }
