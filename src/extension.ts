@@ -11,6 +11,7 @@ import { RpgFoldingProvider } from './providers/foldingProvider';
 import { RpgDocumentSymbolProvider } from './providers/documentSymbolProvider';
 import { RpgDefinitionProvider } from './providers/definitionProvider';
 import { RpgHoverProvider } from './providers/hoverProvider';
+import { RpgReferenceProvider } from './providers/referenceProvider';
 import { RpgSemanticTokenProvider, TOKEN_TYPES, TOKEN_MODIFIERS } from './providers/semanticTokenProvider';
 
 const RPG_LANG = 'rpg';
@@ -41,6 +42,11 @@ export function activate(context: vscode.ExtensionContext): void {
     // ── Go-to Definition ─────────────────────────────────────────────
     context.subscriptions.push(
         vscode.languages.registerDefinitionProvider(selector, new RpgDefinitionProvider()),
+    );
+
+    // ── Find All References ──────────────────────────────────────────
+    context.subscriptions.push(
+        vscode.languages.registerReferenceProvider(selector, new RpgReferenceProvider()),
     );
 
     // ── Hover ────────────────────────────────────────────────────────
