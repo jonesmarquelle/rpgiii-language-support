@@ -75,9 +75,10 @@ export class RpgHoverProvider implements vscode.HoverProvider {
             md.appendMarkdown(`**${klist.name}** — Key List\n\n`);
             md.appendMarkdown(`- Defined at line ${klist.definitionLine + 1}\n`);
             if (klist.keyFields.length > 0) {
-                md.appendMarkdown(`- Key fields: ${klist.keyFields.join(', ')}\n`);
+                let klist_formatted = klist.keyFields.map(f => `\`${f}\``)
+                md.appendMarkdown(`- Key fields: ${klist_formatted.join(', ')}\n`);
             }
-            md.appendMarkdown(`- Used as search argument in \`CHAIN\`, \`SETLL\`, \`SETGT\``);
+            md.appendMarkdown(`- Used as search argument in \`CHAIN\`, \`SETLL\`, \`SETGT\`, \`READE\``);
             return new vscode.Hover(md, hoverRange);
         }
 
