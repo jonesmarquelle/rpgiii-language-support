@@ -18,11 +18,15 @@
   "scripts": {
     "vscode:prepublish": "tsc -p ./",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "watch": "tsc -watch -p ./",
+    "pretest": "tsc -p ./tsconfig.test.json",
+    "test": "mocha"
   },
   "devDependencies": {
+    "@types/mocha": "^10.0.10",
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.105.0",
+    "mocha": "^11.7.5",
     "typescript": "^5.9.3"
   },
   "contributes": {
