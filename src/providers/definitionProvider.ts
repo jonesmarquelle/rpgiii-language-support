@@ -11,7 +11,7 @@
 
 import * as vscode from 'vscode';
 import { documentCache } from '../parser/rpgDocument';
-import { SpecType, CSpecContent, wordAtColumn } from '../types/rpgTypes';
+import { SpecType, CSpecContent, SymbolTable, wordAtColumn } from '../types/rpgTypes';
 
 // Opcodes whose Factor 2 is a file/record-format name
 const FILE_OPS = new Set([
@@ -102,6 +102,35 @@ export class RpgDefinitionProvider implements vscode.DefinitionProvider {
                     return new vscode.Location(document.uri, sym.definitionRange);
                 }
             }
+
+            // PARM / KFLD: result field is a parameter / key-field name — resolve as
+            // a variable or I-spec field, never as a subroutine.
+            if (inResult && (opcode === 'PARM' || opcode === 'KFLD')) {
+                return resolveFieldRef(symbols, baseName, lineIdx, document.uri);
+            }
+
+            // PARM factor1: optional source field moved into the parameter
+            if (inFactor1 && opcode === 'PARM') {
+                return resolveFieldRef(symbols, baseName, lineIdx, document.uri);
+            }
+        }
+
+        // ── I-spec / E-spec filename → F-spec definition ──────────────
+        if (parsedLine) {
+            const specT = parsedLine.specType;
+            if (specT === SpecType.Input || specT === SpecType.Extension) {
+                const col = position.character;
+                const raw = document.lineAt(lineIdx).text;
+                if (col >= 6 && col < 14) {
+                    const hit = wordAtColumn(raw, col, 6, 14);
+                    if (hit) {
+                        const sym = symbols.files.get(hit.word);
+                        if (sym) {
+                            return new vscode.Location(document.uri, sym.definitionRange);
+                        }
+                    }
+                }
+            }
         }
 
         // ── Fallback: try all symbol tables in priority order ─────────
@@ -151,4 +180,30 @@ export class RpgDefinitionProvider implements vscode.DefinitionProvider {
 
         return null;
     }
+}
+
+/**
+ * Resolve a field/variable reference, bypassing the subroutine-first priority
+ * of the general fallback. Used for contexts where the token is unambiguously
+ * a data field (PARM result/factor1, KFLD result).
+ */
+function resolveFieldRef(
+    symbols: SymbolTable,
+    name: string,
+    lineIdx: number,
+    uri: vscode.Uri,
+): vscode.Location | null {
+    const varDefs = symbols.variables.get(name);
+    if (varDefs && varDefs.length > 0) {
+        let closest = varDefs[0];
+        for (const def of varDefs) {
+            if (def.definitionLine <= lineIdx) { closest = def; }
+        }
+        return new vscode.Location(uri, closest.definitionRange);
+    }
+    const field = symbols.fields.get(name);
+    if (field) { return new vscode.Location(uri, field.definitionRange); }
+    const array = symbols.arrays.get(name);
+    if (array) { return new vscode.Location(uri, array.definitionRange); }
+    return null;
 }
