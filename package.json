@@ -2,7 +2,7 @@
   "name": "rpg-iii-language-support",
   "displayName": "RPG-III Language Support",
   "description": "Adds support for RPG-III syntax in VSCode — syntax highlighting, Go-to-Definition, code folding, and document outline",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "marquelle",
   "engines": {
     "vscode": "^1.105.0"
