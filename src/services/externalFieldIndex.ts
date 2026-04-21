@@ -38,12 +38,13 @@ export class ExternalFieldIndexService implements vscode.Disposable {
     private hasWarnedAboutMissing = false;
     private hasWarnedAboutDisconnect = false;
     private hasWarnedAboutSqlFailure = new Set<string>();                 // per connection id
-    private outputChannel: vscode.OutputChannel | undefined;
+    private outputChannel: vscode.OutputChannel;
     private readonly disposables: vscode.Disposable[] = [];
     private readonly _onDidChange = new vscode.EventEmitter<string | null>();
     readonly onDidChange = this._onDidChange.event;
 
     constructor(private readonly adapter: CodeForIbmiAdapter) {
+        this.outputChannel = vscode.window.createOutputChannel('RPG-III');
         this.disposables.push(
             adapter.onDidChangeConnection(() => this.invalidate()),
         );
@@ -82,7 +83,7 @@ export class ExternalFieldIndexService implements vscode.Disposable {
     dispose(): void {
         this._onDidChange.dispose();
         this.disposables.forEach(d => d.dispose());
-        this.outputChannel?.dispose();
+        this.outputChannel.dispose();
     }
 
     private buildIndex(doc: vscode.TextDocument): Promise<ExternalFieldIndex | null> {
@@ -197,9 +198,6 @@ export class ExternalFieldIndexService implements vscode.Disposable {
     }
 
     private logSqlFailure(connectionId: string, err: unknown): void {
-        if (!this.outputChannel) {
-            this.outputChannel = vscode.window.createOutputChannel('RPG-III');
-        }
         const msg = err instanceof Error ? err.stack ?? err.message : String(err);
         this.outputChannel.appendLine(`[${new Date().toISOString()}] SYSCOLUMNS query failed: ${msg}`);
         if (!this.hasWarnedAboutSqlFailure.has(connectionId)) {
