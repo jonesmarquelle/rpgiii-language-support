@@ -15,6 +15,7 @@ const CODE_FOR_IBMI_ID = 'halcyontechltd.code-for-ibmi';
 
 export interface IbmiConnectionInfo {
     id: string;                                                         // host+user — cache key
+    libraryList: string[];                                              // user ILE library list, current library first
     runSQL(sql: string): Promise<Record<string, string | number | null>[]>;
 }
 
@@ -79,8 +80,14 @@ function safeGetConnection(exports: CodeForIBMi): IBMi | undefined {
 }
 
 function wrapConnection(conn: IBMi): IbmiConnectionInfo {
+    const cfg = conn.config;
+    const libraryList = [
+        ...(cfg?.currentLibrary ? [cfg.currentLibrary.toUpperCase()] : []),
+        ...(cfg?.libraryList ?? []).map((l: string) => l.toUpperCase()),
+    ];
     return {
         id: `${conn.currentHost}:${conn.currentUser}`,
+        libraryList,
         runSQL: (sql: string) => conn.runSQL(sql),
     };
 }

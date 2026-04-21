@@ -9,11 +9,6 @@
  * never the SQL long-name columns.
  */
 
-export interface LibraryListRow {
-    SYSTEM_SCHEMA_NAME: string;
-    ORDINAL_POSITION: number;
-}
-
 export interface SysColumnsRow {
     TABLE_SCHEMA: string;
     SYSTEM_TABLE_NAME: string;
@@ -34,12 +29,6 @@ export interface ExternalFieldHit {
     numericScale: number | null;
 }
 
-export function buildLibraryListQuery(): string {
-    return 'SELECT SYSTEM_SCHEMA_NAME, ORDINAL_POSITION ' +
-        'FROM QSYS2.LIBRARY_LIST_INFO ' +
-        'ORDER BY ORDINAL_POSITION';
-}
-
 export function buildSysColumnsQuery(systemTableNames: string[], schemas: string[]): string {
     const tableList = systemTableNames.map(sqlLiteral).join(', ');
     const schemaList = schemas.map(sqlLiteral).join(', ');
@@ -51,18 +40,18 @@ export function buildSysColumnsQuery(systemTableNames: string[], schemas: string
 }
 
 /**
- * Given SYSCOLUMNS rows and the ordered library list, pick the winning
- * (schema, rows) pair for each file name — lowest ORDINAL_POSITION wins.
+ * Given SYSCOLUMNS rows and the ordered library list (array index = priority),
+ * pick the winning (schema, rows) pair for each file name — lowest index wins.
  * Files not found in any library are reported with found=false.
  */
 export function resolveFiles(
     fileNames: string[],
     rows: SysColumnsRow[],
-    libraryList: LibraryListRow[],
+    libraryList: string[],
 ): Map<string, { schema: string; found: boolean; rows: SysColumnsRow[] }> {
     const ordinalBySchema = new Map<string, number>();
-    for (const lib of libraryList) {
-        ordinalBySchema.set(lib.SYSTEM_SCHEMA_NAME.toUpperCase(), lib.ORDINAL_POSITION);
+    for (let i = 0; i < libraryList.length; i++) {
+        ordinalBySchema.set(libraryList[i].toUpperCase(), i);
     }
 
     const byFileBySchema = new Map<string, Map<string, SysColumnsRow[]>>();
