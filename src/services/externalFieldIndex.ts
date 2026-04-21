@@ -104,21 +104,32 @@ export class ExternalFieldIndexService implements vscode.Disposable {
         return promise;
     }
 
+    private log(msg: string): void {
+        this.outputChannel.appendLine(`[${new Date().toISOString()}] ${msg}`);
+    }
+
     private async buildIndexInner(doc: vscode.TextDocument): Promise<ExternalFieldIndex | null> {
+        this.log(`buildIndex: ${doc.uri.fsPath}`);
+
         if (!this.adapter.isAvailable()) {
+            this.log('Code for IBM i extension not found — external field resolution unavailable');
             this.warnMissingOnce();
             return null;
         }
+
         const conn = await this.adapter.getConnection();
         if (!conn) {
+            this.log('Code for IBM i has no active connection');
             this.warnDisconnectedOnce();
             return null;
         }
+        this.log(`Connected: ${conn.id}`);
 
         // Source filenames from the parsed symbol table — already deduplicated
         // and F-spec-continuation-aware.
         const rpgDoc = documentCache.get(doc);
         const fileNames = [...rpgDoc.symbols.files.keys()].map(k => k.toUpperCase());
+        this.log(`F-spec files in document: ${fileNames.join(', ') || '(none)'}`);
         if (fileNames.length === 0) {
             return emptyIndex(conn.id);
         }
@@ -141,19 +152,29 @@ export class ExternalFieldIndexService implements vscode.Disposable {
     ): Promise<ExternalFieldIndex> {
         const libraryList = await this.getLibraryList(conn);
         if (libraryList.length === 0) {
+            this.log('Library list is empty — cannot resolve files');
             return emptyIndex(conn.id);
         }
         const schemas = [...new Set(libraryList.map(l => l.SYSTEM_SCHEMA_NAME.toUpperCase()))];
+        this.log(`Library list (${libraryList.length} entries): ${schemas.slice(0, 10).join(', ')}${schemas.length > 10 ? '…' : ''}`);
 
-        const rawRows = await conn.runSQL(buildSysColumnsQuery(fileNames, schemas));
+        const sql = buildSysColumnsQuery(fileNames, schemas);
+        this.log(`SYSCOLUMNS query: ${sql}`);
+        const rawRows = await conn.runSQL(sql);
         const rows = rawRows as unknown as SysColumnsRow[];
+        this.log(`SYSCOLUMNS returned ${rows.length} row(s)`);
+
         const resolved = resolveFiles(fileNames, rows, libraryList);
 
         const fields = new Map<string, ExternalFieldHit[]>();
         const resolvedFiles = new Map<string, { schema: string; found: boolean }>();
         for (const [file, info] of resolved) {
             resolvedFiles.set(file, { schema: info.schema, found: info.found });
-            if (!info.found) { continue; }
+            if (!info.found) {
+                this.log(`  ${file}: not found in any library`);
+                continue;
+            }
+            this.log(`  ${file}: resolved to ${info.schema} (${info.rows.length} column(s))`);
             for (const row of info.rows) {
                 const hit = mapRowToHit(row);
                 const list = fields.get(hit.fieldName) ?? [];
@@ -161,15 +182,19 @@ export class ExternalFieldIndexService implements vscode.Disposable {
                 fields.set(hit.fieldName, list);
             }
         }
+        this.log(`Index built: ${fields.size} distinct field name(s) across ${resolvedFiles.size} file(s)`);
         return { fields, resolvedFiles, connectionId: conn.id };
     }
 
     private async getLibraryList(conn: IbmiConnectionInfo): Promise<LibraryListRow[]> {
         if (this.libraryListCache && this.libraryListCache.connectionId === conn.id) {
+            this.log('Library list: using cached result');
             return this.libraryListCache.rows;
         }
+        this.log(`Fetching library list for connection: ${conn.id}`);
         const raw = await conn.runSQL(buildLibraryListQuery());
         const rows = raw as unknown as LibraryListRow[];
+        this.log(`Library list fetched: ${rows.length} libraries`);
         this.libraryListCache = { connectionId: conn.id, rows };
         return rows;
     }
