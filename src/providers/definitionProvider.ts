@@ -7,11 +7,13 @@
  *   - Fields / variables: F2/F1/result columns → I-spec definition
  *   - Files: CHAIN/READ/WRITE/etc. factor2 → F-spec definition
  *   - Arrays: any usage → E-spec definition
+ *   - External DB fields: C-spec operand → owning F-spec (via Code for IBM i)
  */
 
 import * as vscode from 'vscode';
 import { documentCache } from '../parser/rpgDocument';
 import { SpecType, CSpecContent, wordAtColumn } from '../types/rpgTypes';
+import { ExternalFieldIndexService } from '../services/externalFieldIndex';
 
 // Opcodes whose Factor 2 is a file/record-format name
 const FILE_OPS = new Set([
@@ -29,12 +31,30 @@ const GOTO_OPS = new Set(['GOTO', 'CAB', 'CABGT', 'CABLT', 'CABEQ', 'CABGE', 'CA
 // Opcodes whose Factor 1 can be a KLIST name (composite key search argument)
 const KLIST_OPS_F1 = new Set(['CHAIN', 'SETLL', 'SETGT', 'READE', 'READPE']);
 
+// Opcodes and reserved words that must never be resolved as external fields.
+// Keeps us from firing a SQL lookup on e.g. "MOVE" or "ADD".
+const RPG_RESERVED = new Set([
+    'CHAIN', 'READ', 'READE', 'READP', 'READPE', 'WRITE', 'UPDATE', 'UPDAT',
+    'DELETE', 'DELET', 'SETLL', 'SETGT', 'OPEN', 'CLOSE', 'FEOD', 'EXFMT',
+    'EXSR', 'BEGSR', 'ENDSR', 'GOTO', 'TAG', 'KLIST', 'KFLD',
+    'MOVE', 'MOVEA', 'MOVEL', 'ADD', 'SUB', 'MULT', 'DIV', 'MVR',
+    'Z-ADD', 'Z-SUB', 'COMP', 'IFEQ', 'IFNE', 'IFGT', 'IFGE', 'IFLT', 'IFLE',
+    'IF', 'ELSE', 'ENDIF', 'END', 'DO', 'DOU', 'DOW', 'ENDDO',
+    'SELEC', 'WHEQ', 'WHNE', 'WHGT', 'WHGE', 'WHLT', 'WHLE', 'OTHER', 'ENDSL',
+    'CAB', 'CABGT', 'CABLT', 'CABEQ', 'CABGE', 'CABLE', 'CABNE',
+    'CAS', 'CASGT', 'CASLT', 'CASEQ', 'CASGE', 'CASLE', 'CASNE',
+    'LOKUP', 'SORTA', 'XFOOT', 'RETRN', 'CALL', 'PARM', 'PLIST',
+    'UDATE', 'UDAY', 'UMONTH', 'UYEAR', 'PAGE',
+]);
+
 export class RpgDefinitionProvider implements vscode.DefinitionProvider {
-    provideDefinition(
+    constructor(private readonly externalFields: ExternalFieldIndexService) { }
+
+    async provideDefinition(
         document: vscode.TextDocument,
         position: vscode.Position,
         _token: vscode.CancellationToken,
-    ): vscode.Definition | null {
+    ): Promise<vscode.Definition | null> {
         const rpgDoc = documentCache.get(document);
         const { symbols } = rpgDoc;
 
@@ -177,6 +197,49 @@ export class RpgDefinitionProvider implements vscode.DefinitionProvider {
             return new vscode.Location(document.uri, klist.definitionRange);
         }
 
-        return null;
+        // ── External DB fields (via Code for IBM i) ───────────────────
+        // Only consulted when the cursor is in a C-spec operand and the token
+        // survives a cheap set of filters. Index is prefetched on open, so
+        // this is usually a cache hit.
+        if (!isExternalFieldCandidate(baseName, parsedLine, position)) {
+            return null;
+        }
+        const externalIdx = await this.externalFields.getIndex(document);
+        const hits = externalIdx?.fields.get(baseName);
+        if (!hits || hits.length === 0) {
+            return null;
+        }
+        const locations: vscode.Location[] = [];
+        for (const hit of hits) {
+            const fspec = symbols.files.get(hit.fileName);
+            if (fspec) {
+                locations.push(new vscode.Location(document.uri, fspec.definitionRange));
+            }
+        }
+        return locations.length > 0 ? locations : null;
     }
+}
+
+/**
+ * Cheap filter to avoid firing on obvious non-fields: numeric literals,
+ * opcodes, names longer than 6 chars (RPG-III field name limit). The cursor
+ * must also be in a C-spec operand — H/F/E/I/O specs have their own handling.
+ */
+function isExternalFieldCandidate(
+    baseName: string,
+    parsedLine: { specType: SpecType; content: CSpecContent | null | unknown } | undefined,
+    position: vscode.Position,
+): boolean {
+    if (!baseName || baseName.length > 6) { return false; }
+    if (/^\d+$/.test(baseName)) { return false; }
+    if (RPG_RESERVED.has(baseName)) { return false; }
+    if (!parsedLine || parsedLine.specType !== SpecType.Calculation || !parsedLine.content) {
+        return false;
+    }
+    const c = parsedLine.content as CSpecContent;
+    const col = position.character;
+    const inFactor1 = col >= c.factor1Range[0] && col < c.factor1Range[1];
+    const inFactor2 = col >= c.factor2Range[0] && col < c.factor2Range[1];
+    const inResult  = col >= c.resultRange[0]  && col < c.resultRange[1];
+    return inFactor1 || inFactor2 || inResult;
 }

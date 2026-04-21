@@ -21,11 +21,19 @@
     "watch": "tsc -watch -p ./"
   },
   "devDependencies": {
+    "@halcyontech/vscode-ibmi-types": "^2.18.0",
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.105.0",
     "typescript": "^5.9.3"
   },
   "contributes": {
+    "commands": [
+      {
+        "command": "rpg-iii.refreshExternalFields",
+        "title": "Refresh External Field Definitions",
+        "category": "RPG-III"
+      }
+    ],
     "languages": [
       {
         "id": "rpg",
