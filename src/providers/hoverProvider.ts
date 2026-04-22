@@ -6,7 +6,8 @@
 
 import * as vscode from 'vscode';
 import { documentCache } from '../parser/rpgDocument';
-import { CSpecContent, SpecType, wordAtColumn } from '../types/rpgTypes';
+import { CSpecContent } from '../types/rpgTypes';
+import { closestVariableDef, resolveSymbolAt } from './providerUtils';
 
 export class RpgHoverProvider implements vscode.HoverProvider {
     provideHover(
@@ -16,35 +17,15 @@ export class RpgHoverProvider implements vscode.HoverProvider {
     ): vscode.Hover | null {
         const rpgDoc = documentCache.get(document);
         const { symbols } = rpgDoc;
-
-        // Comma excluded so PATH,X yields PATH or X based on cursor position
-        const wordRange = document.getWordRangeAtPosition(position, /[\$#@*]?[\w#@$]+/);
-        if (!wordRange) {
-            return null;
-        }
-        let key = document.getText(wordRange).toUpperCase();
-        let hoverRange: vscode.Range = wordRange;
-
-        // On C-spec lines the regex can bleed across fixed-column field boundaries.
-        // Re-extract within the field and correct the highlight range.
-        const lineIdx = position.line;
+        const lineIdx    = position.line;
         const parsedLine = rpgDoc.lines[lineIdx];
-        if (parsedLine?.specType === SpecType.Calculation) {
-            const col = position.character;
-            const raw = document.lineAt(lineIdx).text;
-            let bounds: [number, number] | null = null;
-            if      (col >= 17 && col < 27) { bounds = [17, 27]; }
-            else if (col >= 32 && col < 42) { bounds = [32, 42]; }
-            else if (col >= 42 && col < 48) { bounds = [42, 48]; }
-            if (bounds) {
-                const hit = wordAtColumn(raw, col, bounds[0], bounds[1]);
-                if (!hit) { return null; }
-                key = hit.word;
-                hoverRange = new vscode.Range(position.line, hit.start, position.line, hit.end);
-            }
-        }
 
-        // Skip indicators
+        const hit = resolveSymbolAt(document, position, parsedLine);
+        if (!hit) { return null; }
+        const key = hit.name;
+        const hoverRange = hit.range;
+
+        // *IN indicators get a canned tooltip
         if (key.startsWith('*IN')) {
             const md = new vscode.MarkdownString();
             md.appendMarkdown(`**${key}** — RPG-III Indicator\n\n`);
@@ -53,9 +34,7 @@ export class RpgHoverProvider implements vscode.HoverProvider {
         }
 
         // Skip other system constants
-        if (key.startsWith('*')) {
-            return null;
-        }
+        if (key.startsWith('*')) { return null; }
 
         // Subroutine
         const sr = symbols.subroutines.get(key);
@@ -75,8 +54,8 @@ export class RpgHoverProvider implements vscode.HoverProvider {
             md.appendMarkdown(`**${klist.name}** — Key List\n\n`);
             md.appendMarkdown(`- Defined at line ${klist.definitionLine + 1}\n`);
             if (klist.keyFields.length > 0) {
-                let klist_formatted = klist.keyFields.map(f => `\`${f}\``)
-                md.appendMarkdown(`- Key fields: ${klist_formatted.join(', ')}\n`);
+                const formatted = klist.keyFields.map(f => `\`${f}\``);
+                md.appendMarkdown(`- Key fields: ${formatted.join(', ')}\n`);
             }
             md.appendMarkdown(`- Used as search argument in \`CHAIN\`, \`SETLL\`, \`SETGT\`, \`READE\``);
             return new vscode.Hover(md, hoverRange);
@@ -126,13 +105,7 @@ export class RpgHoverProvider implements vscode.HoverProvider {
         // C-spec variable (position-aware: last declaration at or before this line)
         const varDefs = symbols.variables.get(key);
         if (varDefs && varDefs.length > 0) {
-            const lineIdx = position.line;
-            let closest = varDefs[0];
-            for (const def of varDefs) {
-                if (def.definitionLine <= lineIdx) {
-                    closest = def;
-                }
-            }
+            const closest = closestVariableDef(varDefs, lineIdx);
             const defParsedLine = rpgDoc.lines[closest.definitionLine];
             const defContent = defParsedLine?.content as CSpecContent | undefined;
             const md = new vscode.MarkdownString();
