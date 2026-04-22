@@ -132,8 +132,8 @@ export function parseDocument(textDoc: vscode.TextDocument): RpgDocument {
                         fields: [],
                     };
                     symbols.dataStructures.push(currentDs);
-                } else if (content.fieldName && currentDs !== null) {
-                    // DS subfield definition
+                } else if (content.fieldName && (content.fromPos > 0 || content.toPos > 0) && currentDs !== null) {
+                    // DS subfield definition — must have a positional range to belong to the DS
                     const fieldSym: FieldSymbol = {
                         name: content.fieldName,
                         definitionLine: i,
@@ -149,8 +149,8 @@ export function parseDocument(textDoc: vscode.TextDocument): RpgDocument {
                     if (!symbols.fields.has(key)) {
                         symbols.fields.set(key, fieldSym);
                     }
-                } else if (content.fieldName && !content.isDataStructure) {
-                    // Record-format field (not in a DS)
+                } else if (content.fieldName && (content.fromPos > 0 || content.toPos > 0)) {
+                    // Record-format field (positional, outside a DS)
                     currentDs = null;
                     const fieldSym: FieldSymbol = {
                         name: content.fieldName,
@@ -158,6 +158,23 @@ export function parseDocument(textDoc: vscode.TextDocument): RpgDocument {
                         definitionRange: lineRange(i, content.fieldNameRange),
                         fromPos: content.fromPos,
                         toPos: content.toPos,
+                        decPos: content.decPos,
+                        dataType: content.dataType,
+                        parentDsName: '',
+                    };
+                    const key = content.fieldName.toUpperCase();
+                    if (!symbols.fields.has(key)) {
+                        symbols.fields.set(key, fieldSym);
+                    }
+                } else if (content.fieldName) {
+                    // Named constant (no positional from/to range) — standalone symbol,
+                    // does not belong to any DS and does not reset DS context
+                    const fieldSym: FieldSymbol = {
+                        name: content.fieldName,
+                        definitionLine: i,
+                        definitionRange: lineRange(i, content.fieldNameRange),
+                        fromPos: 0,
+                        toPos: 0,
                         decPos: content.decPos,
                         dataType: content.dataType,
                         parentDsName: '',
