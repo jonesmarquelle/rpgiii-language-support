@@ -18,7 +18,8 @@
   "scripts": {
     "vscode:prepublish": "tsc -p ./",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "watch": "tsc -watch -p ./",
+    "test": "tsc -p ./ && node --test \"out/test/*.test.js\""
   },
   "devDependencies": {
     "@halcyontech/vscode-ibmi-types": "^2.18.0",

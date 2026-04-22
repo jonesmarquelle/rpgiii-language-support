@@ -11,7 +11,6 @@ import {
     SpecType, ParsedLine, RpgDocument, SymbolTable,
     FileSymbol, ArraySymbol, DataStructureSymbol, FieldSymbol,
     SubroutineSymbol, TagSymbol, KListSymbol, KFieldSymbol,
-    colChar,
 } from '../types/rpgTypes';
 import { parseCSpec, parseFSpec, parseISpec, parseESpec } from './lineParser';
 
