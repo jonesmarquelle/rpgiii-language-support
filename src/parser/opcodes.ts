@@ -43,6 +43,22 @@ export const FOLD_CLOSERS: Record<string, string> = {
 // Openers that the generic END opcode is NOT allowed to close
 export const END_EXCLUDED_OPENERS = new Set(['BEGSR']);
 
+// All RPG-III opcodes — used to guard against treating an opcode token as a
+// field name (e.g. suppresses SQL lookups on MOVE, ADD, CHAIN, etc.).
+export const RPG_RESERVED = new Set([
+    'CHAIN', 'READ', 'READE', 'READP', 'READPE', 'WRITE', 'UPDATE', 'UPDAT',
+    'DELETE', 'DELET', 'SETLL', 'SETGT', 'OPEN', 'CLOSE', 'FEOD', 'EXFMT',
+    'EXSR', 'BEGSR', 'ENDSR', 'GOTO', 'TAG', 'KLIST', 'KFLD',
+    'MOVE', 'MOVEA', 'MOVEL', 'ADD', 'SUB', 'MULT', 'DIV', 'MVR',
+    'Z-ADD', 'Z-SUB', 'COMP', 'IFEQ', 'IFNE', 'IFGT', 'IFGE', 'IFLT', 'IFLE',
+    'IF', 'ELSE', 'ENDIF', 'END', 'DO', 'DOU', 'DOW', 'ENDDO',
+    'SELEC', 'WHEQ', 'WHNE', 'WHGT', 'WHGE', 'WHLT', 'WHLE', 'OTHER', 'ENDSL',
+    'CAB', 'CABGT', 'CABLT', 'CABEQ', 'CABGE', 'CABLE', 'CABNE',
+    'CAS', 'CASGT', 'CASLT', 'CASEQ', 'CASGE', 'CASLE', 'CASNE',
+    'LOKUP', 'SORTA', 'XFOOT', 'RETRN', 'CALL', 'PARM', 'PLIST',
+    'UDATE', 'UDAY', 'UMONTH', 'UYEAR', 'PAGE',
+]);
+
 /**
  * Extract the base opcode from combined opcodes like IFEQ, DOUGE, DOWLT, etc.
  * `IFEQ` → `IF`, `DOUGE` → `DOU`, `DOWLT` → `DOW`, `CABNE` → `CAB`.

@@ -7,20 +7,25 @@
  *   - Fields / variables: F2/F1/result columns → I-spec definition
  *   - Files: CHAIN/READ/WRITE/etc. factor2 → F-spec definition
  *   - Arrays: any usage → E-spec definition
+ *   - External DB fields: C-spec operand → owning F-spec (via Code for IBM i)
  */
 
 import * as vscode from 'vscode';
 import { documentCache } from '../parser/rpgDocument';
-import { SpecType, CSpecContent, SymbolTable, BaseSymbol } from '../types/rpgTypes';
+import { SpecType, CSpecContent, SymbolTable, BaseSymbol, ParsedLine } from '../types/rpgTypes';
 import { cspecFieldAt, cspecSymbolKind, CSpecSymbolKind } from '../parser/cspecContext';
 import { closestVariableDef, resolveSymbolAt } from './providerUtils';
+import { ExternalFieldIndexService } from '../services/externalFieldIndex';
+import { RPG_RESERVED } from '../parser/opcodes';
 
 export class RpgDefinitionProvider implements vscode.DefinitionProvider {
-    provideDefinition(
+    constructor(private readonly externalFields: ExternalFieldIndexService) { }
+
+    async provideDefinition(
         document: vscode.TextDocument,
         position: vscode.Position,
         _token: vscode.CancellationToken,
-    ): vscode.Definition | null {
+    ): Promise<vscode.Definition | null> {
         const rpgDoc = documentCache.get(document);
         const { symbols } = rpgDoc;
         const lineIdx    = position.line;
@@ -72,7 +77,26 @@ export class RpgDefinitionProvider implements vscode.DefinitionProvider {
         const klist = symbols.klists.get(baseName);
         if (klist) { return toLocation(document.uri, klist); }
 
-        return null;
+        // ── External DB fields (via Code for IBM i) ───────────────────
+        // Only consulted when the cursor is in a C-spec operand and the token
+        // survives a cheap set of filters. Index is prefetched on open, so
+        // this is usually a cache hit.
+        if (!isExternalFieldCandidate(baseName, parsedLine, position)) {
+            return null;
+        }
+        const externalIdx = await this.externalFields.getIndex(document);
+        const hits = externalIdx?.fields.get(baseName);
+        if (!hits || hits.length === 0) {
+            return null;
+        }
+        const locations: vscode.Location[] = [];
+        for (const hit of hits) {
+            const fspec = symbols.files.get(hit.fileName);
+            if (fspec) {
+                locations.push(new vscode.Location(document.uri, fspec.definitionRange));
+            }
+        }
+        return locations.length > 0 ? locations : null;
     }
 }
 
@@ -92,4 +116,24 @@ function lookupByKind(
 
 function toLocation(uri: vscode.Uri, sym: BaseSymbol): vscode.Location {
     return new vscode.Location(uri, sym.definitionRange);
+}
+
+/**
+ * Cheap filter to avoid firing on obvious non-fields before consulting the
+ * external SYSCOLUMNS index: numeric literals, RPG reserved words, names
+ * longer than 6 chars (RPG-III field-name limit), and anything outside a
+ * C-spec operand field.
+ */
+function isExternalFieldCandidate(
+    baseName: string,
+    parsedLine: ParsedLine | undefined,
+    position: vscode.Position,
+): boolean {
+    if (!baseName || baseName.length > 6) { return false; }
+    if (/^\d+$/.test(baseName)) { return false; }
+    if (RPG_RESERVED.has(baseName)) { return false; }
+    if (!parsedLine || parsedLine.specType !== SpecType.Calculation || !parsedLine.content) {
+        return false;
+    }
+    return cspecFieldAt(position.character) !== null;
 }
