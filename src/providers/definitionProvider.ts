@@ -16,22 +16,7 @@ import { SpecType, CSpecContent, SymbolTable, BaseSymbol, ParsedLine } from '../
 import { cspecFieldAt, cspecSymbolKind, CSpecSymbolKind } from '../parser/cspecContext';
 import { closestVariableDef, resolveSymbolAt } from './providerUtils';
 import { ExternalFieldIndexService } from '../services/externalFieldIndex';
-
-// Opcodes and reserved words that must never be resolved as external fields.
-// Keeps us from firing a SQL lookup on e.g. "MOVE" or "ADD".
-const RPG_RESERVED = new Set([
-    'CHAIN', 'READ', 'READE', 'READP', 'READPE', 'WRITE', 'UPDATE', 'UPDAT',
-    'DELETE', 'DELET', 'SETLL', 'SETGT', 'OPEN', 'CLOSE', 'FEOD', 'EXFMT',
-    'EXSR', 'BEGSR', 'ENDSR', 'GOTO', 'TAG', 'KLIST', 'KFLD',
-    'MOVE', 'MOVEA', 'MOVEL', 'ADD', 'SUB', 'MULT', 'DIV', 'MVR',
-    'Z-ADD', 'Z-SUB', 'COMP', 'IFEQ', 'IFNE', 'IFGT', 'IFGE', 'IFLT', 'IFLE',
-    'IF', 'ELSE', 'ENDIF', 'END', 'DO', 'DOU', 'DOW', 'ENDDO',
-    'SELEC', 'WHEQ', 'WHNE', 'WHGT', 'WHGE', 'WHLT', 'WHLE', 'OTHER', 'ENDSL',
-    'CAB', 'CABGT', 'CABLT', 'CABEQ', 'CABGE', 'CABLE', 'CABNE',
-    'CAS', 'CASGT', 'CASLT', 'CASEQ', 'CASGE', 'CASLE', 'CASNE',
-    'LOKUP', 'SORTA', 'XFOOT', 'RETRN', 'CALL', 'PARM', 'PLIST',
-    'UDATE', 'UDAY', 'UMONTH', 'UYEAR', 'PAGE',
-]);
+import { RPG_RESERVED } from '../parser/opcodes';
 
 export class RpgDefinitionProvider implements vscode.DefinitionProvider {
     constructor(private readonly externalFields: ExternalFieldIndexService) { }
