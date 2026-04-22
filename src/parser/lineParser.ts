@@ -136,22 +136,41 @@ export function parseISpec(line: string): ISpecContent {
     const fromStr = colSlice(line, 43, 4).trim();
     const toStr   = colSlice(line, 47, 4).trim();
 
+    // Named constant value occupies cols 20-41 (22 chars). The opening quote is
+    // at col 20; a closing quote ends the value, a trailing '-' means continuation.
+    let constantValue = '';
+    let constantTruncated = false;
+    const constArea = colSlice(line, 20, 22).trimEnd();
+    if (constArea.startsWith("'")) {
+        const inner = constArea.slice(1);
+        if (inner.endsWith("'")) {
+            constantValue = inner.slice(0, -1);
+        } else if (inner.endsWith('-')) {
+            constantValue = inner.slice(0, -1);
+            constantTruncated = true;
+        } else {
+            constantValue = inner;
+        }
+    }
+
     return {
-        filename:        colTrim(line, 6, 8),
-        sequenceCode:    colSlice(line, 14, 2).trim(),
-        number:          colChar(line, 16),
-        option:          colChar(line, 17),
-        recordId:        recordIdArea,
-        isDataStructure: isDS,
+        filename:          colTrim(line, 6, 8),
+        sequenceCode:      colSlice(line, 14, 2).trim(),
+        number:            colChar(line, 16),
+        option:            colChar(line, 17),
+        recordId:          recordIdArea,
+        isDataStructure:   isDS,
         dsOption,
-        dataType:        colChar(line, 42).toUpperCase(),
-        fromPos:         fromStr ? parseInt(fromStr, 10) : 0,
-        toPos:           toStr   ? parseInt(toStr,   10) : 0,
-        decPos:          colChar(line, 51),
-        fieldName:       colTrim(line, 52, 6),
-        controlLevel:    colSlice(line, 58, 2).trim(),
-        matchingField:   colSlice(line, 60, 2).trim(),
-        fieldNameRange:  trimmedRange(line, 52, 6),
+        dataType:          colChar(line, 42).toUpperCase(),
+        fromPos:           fromStr ? parseInt(fromStr, 10) : 0,
+        toPos:             toStr   ? parseInt(toStr,   10) : 0,
+        decPos:            colChar(line, 51),
+        fieldName:         colTrim(line, 52, 6),
+        controlLevel:      colSlice(line, 58, 2).trim(),
+        matchingField:     colSlice(line, 60, 2).trim(),
+        fieldNameRange:    trimmedRange(line, 52, 6),
+        constantValue,
+        constantTruncated,
     };
 }
 

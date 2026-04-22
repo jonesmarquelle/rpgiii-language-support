@@ -120,9 +120,20 @@ export class RpgHoverProvider implements vscode.HoverProvider {
             return new vscode.Hover(md, hoverRange);
         }
 
-        // Field (I-spec DS subfields and record fields)
+        // Field (I-spec DS subfields, record fields, and named constants)
         const field = symbols.fields.get(key);
         if (field) {
+            // Named constant — show the value text, truncated if needed
+            if (field.dataType === 'C') {
+                const md = new vscode.MarkdownString();
+                const MAX = 30;
+                const val = field.constantValue;
+                const tooLong = val.length > MAX;
+                const display = tooLong ? val.slice(0, MAX) : val;
+                const suffix = (field.constantTruncated || tooLong) ? '...' : '';
+                md.appendMarkdown(`**${field.name}** — Named Constant\n\n\`'${display}${suffix}'\``);
+                return new vscode.Hover(md, hoverRange);
+            }
             const md = new vscode.MarkdownString();
             md.appendMarkdown(`**${field.name}** — Field\n\n`);
             if (field.parentDsName) {
