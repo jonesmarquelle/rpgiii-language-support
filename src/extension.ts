@@ -12,7 +12,7 @@ import { RpgDocumentSymbolProvider } from './providers/documentSymbolProvider';
 import { RpgDefinitionProvider } from './providers/definitionProvider';
 import { RpgHoverProvider } from './providers/hoverProvider';
 import { RpgReferenceProvider } from './providers/referenceProvider';
-import { RpgSemanticTokenProvider, TOKEN_TYPES, TOKEN_MODIFIERS } from './providers/semanticTokenProvider';
+import { RpgSemanticTokenProvider } from './providers/semanticTokenProvider';
 
 const RPG_LANG = 'rpg';
 

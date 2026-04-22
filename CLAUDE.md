@@ -44,17 +44,22 @@ All column parsing uses 0-based slicing via helpers in `src/types/rpgTypes.ts`: 
 
 Each provider calls `documentCache.get(document)` then reads from the resulting `SymbolTable`. They do not re-parse.
 
-- **`definitionProvider.ts`** — Context-aware: checks which C-spec field the cursor is in (Factor 1 [17..27], Factor 2 [32..42], Result [42..48]) and which opcode is present before resolving the symbol kind. Falls back to a symbol-table scan for non-C-spec positions.
-- **`referenceProvider.ts`** — Determines symbol kind using the same opcode+field-position logic, then scans all lines for matching identifiers. Uses `fieldMatchRange()` to strip array subscripts (e.g., `ARR,5` → `ARR`).
+- **`definitionProvider.ts`** — Uses `cspecSymbolKind()` from `src/parser/cspecContext.ts` to resolve an opcode + cursor field (Factor 1 [17..27], Factor 2 [32..42], Result [42..48]) to a specific symbol kind. Falls back to a symbol-table scan for non-C-spec positions.
+- **`referenceProvider.ts`** — Determines the symbol kind the same way, then scans all lines for matching identifiers. Uses `fieldMatchRange()` to strip array subscripts (e.g., `ARR,5` → `ARR`).
 - **`semanticTokenProvider.ts`** — Priority-based token coloring; opcode context determines whether a Factor 1/2 token is colored as `function` (subroutine), `parameter` (tag), `type` (file/array), or `variable`.
-- **`foldingProvider.ts`** — Stack-based; pushes IF/DO/DOW/DOU/SELEC/BEGSR opcodes and pops on END*/ENDSR. Also folds contiguous spec-type sections (all F-specs, all I-specs, etc.).
-- **`hoverProvider.ts`** — Re-extracts the word at cursor using `wordAtColumn()` to prevent regex bleeding across field boundaries.
+- **`foldingProvider.ts`** — Stack-based; pushes opcodes in `FOLD_OPENERS` and pops on `FOLD_CLOSERS` / generic `END`. Also folds contiguous spec-type sections (all F-specs, all I-specs, etc.).
+- **`hoverProvider.ts`** — Uses `resolveSymbolAt()` from `providerUtils.ts` to extract the word respecting C-spec field boundaries, then formats a tooltip from the `SymbolTable`.
 - **`documentSymbolProvider.ts`** — Groups symbols into six top-level containers (Files, Arrays, Data Structures, Subroutines, Tags); DS symbols are expandable with subfields.
+
+Shared helpers:
+- `src/parser/opcodes.ts` — all opcode classification sets + `baseOpcode()`.
+- `src/parser/cspecContext.ts` — `cspecFieldAt()`, `wordAtCspec()`, `cspecSymbolKind()`.
+- `src/providers/providerUtils.ts` — `resolveSymbolAt()` (word-at-cursor respecting C-spec fields) and `closestVariableDef()` (walk-back for multi-declared variables).
 
 ### Key Conventions
 
-- **Opcodes** are always uppercased and 5 characters wide in the source. `baseOpcode()` in `lineParser.ts` strips trailing condition letters (e.g., `IFEQ` → `IF`, `DOUGE` → `DOU`) for control-flow classification.
-- **Opcode sets** (e.g., `FILE_OPS`, `SR_OPS_F2`, `TAG_OPS`) are defined as `Set<string>` constants at the top of definition and reference providers — update these sets when adding support for new opcodes.
+- **Opcodes** are always uppercased and 5 characters wide in the source. `baseOpcode()` in `src/parser/opcodes.ts` strips trailing condition letters (e.g., `IFEQ` → `IF`, `DOUGE` → `DOU`) for control-flow classification.
+- **Opcode sets** (`FILE_OPS`, `SR_OPS_F1`, `SR_OPS_F2`, `GOTO_OPS`, `KLIST_OPS_F1`, `FOLD_OPENERS`, `FOLD_CLOSERS`) are the single source of truth in `src/parser/opcodes.ts` — update them there when adding support for a new opcode and every provider picks it up.
 - **Variables vs. Fields**: Variables are C-spec result fields that have a field length defined (cols 48–50). Fields are I-spec declarations. They are stored in separate symbol table maps.
 - **Multiple variable assignments**: The variables map stores *all* occurrences in source order. Go-to-definition walks the list and picks the last definition at or before the cursor line.
 - **Indicators** (`*IN`, `*IN01`–`*IN99`) and system constants (`*BLANKS`, `*ZERO`, etc.) are explicitly skipped in definition and hover resolution.

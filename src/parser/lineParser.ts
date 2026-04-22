@@ -203,22 +203,3 @@ function trimmedRange(line: string, colStart: number, colLen: number): [number, 
     const end   = start + contentLen;
     return [start, end];
 }
-
-/**
- * Extract the base opcode from combined opcodes like IFEQ, DOUGE, DOWLT, etc.
- * Used by the folding provider to determine stack push/pop behaviour.
- */
-export function baseOpcode(opcode: string): string {
-    const upper = opcode.toUpperCase();
-    // Combined structured opcodes: IF+xx, DO+xx, DOW+xx, DOU+xx, WH+xx, CAB+xx, CAS+xx
-    const prefixes = ['DOW', 'DOU', 'CAB', 'CAS', 'DO', 'IF', 'WH', 'AND', 'OR'];
-    for (const prefix of prefixes) {
-        if (upper.startsWith(prefix) && upper !== prefix) {
-            const suffix = upper.slice(prefix.length);
-            if (['GT', 'LT', 'EQ', 'NE', 'GE', 'LE'].includes(suffix)) {
-                return prefix;
-            }
-        }
-    }
-    return upper;
-}

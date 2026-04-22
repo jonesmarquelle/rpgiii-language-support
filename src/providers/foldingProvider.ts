@@ -12,22 +12,9 @@
 import * as vscode from 'vscode';
 import { documentCache } from '../parser/rpgDocument';
 import { SpecType, CSpecContent } from '../types/rpgTypes';
-import { baseOpcode } from '../parser/lineParser';
-
-// Opcodes that open a fold block
-const OPENERS = new Set(['IF', 'DO', 'DOW', 'DOU', 'SELEC', 'BEGSR']);
-// Opcodes that close a fold block
-const CLOSERS: Record<string, string> = {
-    ENDIF:  'IF',
-    ENDDO:  'DO',    // closes DO, DOW, DOU
-    ENDSL:  'SELEC',
-    ENDSR:  'BEGSR',
-};
-// Opcodes that are interior markers but don't change depth
-const INTERIORS = new Set(['ELSE', 'WHEN', 'OTHER']);
-
-// Openers that END is NOT allowed to close
-const END_EXCLUDED_OPENERS = new Set(['BEGSR']);
+import {
+    baseOpcode, FOLD_OPENERS, FOLD_CLOSERS, END_EXCLUDED_OPENERS,
+} from '../parser/opcodes';
 
 interface FoldFrame {
     opcode: string;     // base opcode
@@ -52,11 +39,11 @@ export class RpgFoldingProvider implements vscode.FoldingRangeProvider {
             const c = line.content as CSpecContent;
             const base = baseOpcode(c.opcode);
 
-            if (OPENERS.has(base)) {
+            if (FOLD_OPENERS.has(base)) {
                 stack.push({ opcode: base, startLine: line.lineNumber });
-            } else if (base in CLOSERS) {
+            } else if (base in FOLD_CLOSERS) {
                 // Pop any mismatched frames first (robustness)
-                const expected = CLOSERS[base];
+                const expected = FOLD_CLOSERS[base];
                 let top = stack[stack.length - 1];
                 // DOW and DOU both close with ENDDO
                 while (

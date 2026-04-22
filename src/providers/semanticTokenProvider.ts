@@ -12,6 +12,9 @@
 import * as vscode from 'vscode';
 import { documentCache } from '../parser/rpgDocument';
 import { SpecType, CSpecContent, FSpecContent, ISpecContent, ESpecContent } from '../types/rpgTypes';
+import {
+    SR_OPS_F1, SR_OPS_F2, GOTO_OPS, KLIST_OPS_F1,
+} from '../parser/opcodes';
 
 // Must match package.json contributes.semanticTokenScopes tokenTypes array (0-indexed)
 export const TOKEN_TYPES = ['type', 'variable', 'function', 'parameter'];
@@ -32,17 +35,6 @@ const MOD_IDX: Record<string, number> = {
 function modBit(mod: string): number {
     return 1 << (MOD_IDX[mod] ?? 0);
 }
-
-// Opcodes that reference a subroutine name in Factor 2
-const SR_F2_OPS = new Set([
-    'EXSR', 'CAS', 'CASGT', 'CASLT', 'CASEQ', 'CASGE', 'CASLE', 'CASNE',
-]);
-// Opcodes that reference a subroutine name in Factor 1
-const SR_F1_OPS = new Set(['BEGSR', 'ENDSR']);
-// Opcodes whose Factor 2 is a tag/label name
-const GOTO_OPS = new Set(['GOTO', 'CAB', 'CABGT', 'CABLT', 'CABEQ', 'CABGE', 'CABLE', 'CABNE']);
-// Opcodes whose Factor 1 can be a KLIST name
-const KLIST_OPS_F1 = new Set(['CHAIN', 'SETLL', 'SETGT', 'READE', 'READPE']);
 
 export class RpgSemanticTokenProvider implements vscode.DocumentSemanticTokensProvider {
     readonly legend = new vscode.SemanticTokensLegend(TOKEN_TYPES, TOKEN_MODIFIERS);
@@ -107,7 +99,7 @@ export class RpgSemanticTokenProvider implements vscode.DocumentSemanticTokensPr
                         const [s, e] = c.factor1Range;
                         if (e > s) {
                             const f1Key = c.factor1.toUpperCase();
-                            if (SR_F1_OPS.has(opcode)) {
+                            if (SR_OPS_F1.has(opcode)) {
                                 // Subroutine name → function declaration
                                 builder.push(lineNumber, s, e - s, TYPE_IDX.function, modBit('declaration'));
                             } else if (opcode === 'TAG') {
@@ -135,7 +127,7 @@ export class RpgSemanticTokenProvider implements vscode.DocumentSemanticTokensPr
                         const [s, e] = c.factor2Range;
                         if (e > s) {
                             const f2Key = c.factor2.split(',')[0].toUpperCase();
-                            if (SR_F2_OPS.has(opcode) && symbols.subroutines.has(f2Key)) {
+                            if (SR_OPS_F2.has(opcode) && symbols.subroutines.has(f2Key)) {
                                 builder.push(lineNumber, s, e - s, TYPE_IDX.function, 0);
                             } else if (GOTO_OPS.has(opcode) && symbols.tags.has(f2Key)) {
                                 // GOTO / CAB target → parameter
