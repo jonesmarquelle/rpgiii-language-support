@@ -147,14 +147,19 @@
                     "match": "(?i)(?<=^.{6})(\\w+)(?=.{6,12}DS)"
                 },
                 {
+                    "comment": "Named constant character value in I-spec (cols 21-42, index 20-41) — ends at closing quote or continuation hyphen so the type indicator at col 43 is not consumed by the general string rule",
+                    "name": "string.quoted.single.rpg",
+                    "match": "(?i)(?<=^.{5}I.{14})'[^'\\n]{0,20}[-']?"
+                },
+                {
                     "comment": "Field name in I-spec cols 53-58 (index 52-57) — on field definition lines",
                     "name": "variable.other.rpg.field",
                     "match": "(?i)(?<=^.{5}I.{46})(\\w+)"
                 },
                 {
-                    "comment": "Data type P/B/L/R in I-spec col 43 (index 42)",
+                    "comment": "Data type P/B/L/R/C in I-spec col 43 (index 42); C marks a named constant",
                     "name": "storage.type.data.rpg",
-                    "match": "(?i)(?<=^.{5}I.{36})[PBLR](?=[0-9\\s]{4})"
+                    "match": "(?i)(?<=^.{5}I.{36})[PBLRC](?=[0-9\\s]{4})"
                 }
             ]
         },
