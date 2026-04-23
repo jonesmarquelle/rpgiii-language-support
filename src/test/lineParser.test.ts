@@ -127,6 +127,37 @@ describe('parseISpec', () => {
         assert.equal(i.fromPos, 0);
         assert.equal(i.toPos,   0);
     });
+
+    it('extracts a complete named constant value', () => {
+        // col 20: opening quote, cols 21-23: YES, col 24: closing quote
+        const line = rpgLine([5, 'I'], [20, "'YES'"], [42, 'C'], [52, 'YESCON']);
+        const i = parseISpec(line);
+        assert.equal(i.dataType,          'C');
+        assert.equal(i.constantValue,     'YES');
+        assert.equal(i.constantTruncated, false);
+    });
+
+    it('extracts a continuation constant and sets truncated flag', () => {
+        // 22-char area filled: opening quote + 20 chars of text + continuation dash
+        const line = rpgLine([5, 'I'], [20, "'OPTION W ALLOWED FOR-"], [42, 'C'], [52, 'ERR1  ']);
+        const i = parseISpec(line);
+        assert.equal(i.constantValue,     'OPTION W ALLOWED FOR');
+        assert.equal(i.constantTruncated, true);
+    });
+
+    it('extracts a numeric-looking constant with a closing quote', () => {
+        const line = rpgLine([5, 'I'], [20, "'000000000000'"], [42, 'C'], [52, 'PPJT  ']);
+        const i = parseISpec(line);
+        assert.equal(i.constantValue,     '000000000000');
+        assert.equal(i.constantTruncated, false);
+    });
+
+    it('returns empty constantValue for non-constant (positional) lines', () => {
+        const line = rpgLine([5, 'I'], [43, '   1'], [47, '  10'], [52, 'FLD   ']);
+        const i = parseISpec(line);
+        assert.equal(i.constantValue,     '');
+        assert.equal(i.constantTruncated, false);
+    });
 });
 
 describe('parseESpec', () => {

@@ -143,6 +143,8 @@ export function parseDocument(textDoc: vscode.TextDocument): RpgDocument {
                         decPos: content.decPos,
                         dataType: content.dataType,
                         parentDsName: currentDs.name,
+                        constantValue: '',
+                        constantTruncated: false,
                     };
                     currentDs.fields.push(fieldSym);
                     const key = content.fieldName.toUpperCase();
@@ -161,6 +163,8 @@ export function parseDocument(textDoc: vscode.TextDocument): RpgDocument {
                         decPos: content.decPos,
                         dataType: content.dataType,
                         parentDsName: '',
+                        constantValue: '',
+                        constantTruncated: false,
                     };
                     const key = content.fieldName.toUpperCase();
                     if (!symbols.fields.has(key)) {
@@ -178,6 +182,8 @@ export function parseDocument(textDoc: vscode.TextDocument): RpgDocument {
                         decPos: content.decPos,
                         dataType: content.dataType,
                         parentDsName: '',
+                        constantValue: content.constantValue,
+                        constantTruncated: content.constantTruncated,
                     };
                     const key = content.fieldName.toUpperCase();
                     if (!symbols.fields.has(key)) {
@@ -306,6 +312,8 @@ export function parseDocument(textDoc: vscode.TextDocument): RpgDocument {
                         decPos: content.decPos,
                         dataType: '',
                         parentDsName: '',
+                        constantValue: '',
+                        constantTruncated: false,
                     };
                     const existing = symbols.variables.get(key);
                     if (existing) {

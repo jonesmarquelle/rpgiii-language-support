@@ -62,7 +62,7 @@ export interface ISpecContent {
     recordId: string;           // cols [18..19]
     isDataStructure: boolean;   // 'DS' at cols [18..19]
     dsOption: string;           // S (SDS) / U / I / blank
-    dataType: string;           // P/B/L/R — col [42]
+    dataType: string;           // P/B/L/R/C — col [42]
     fromPos: number;            // cols [43..46]
     toPos: number;              // cols [47..50]
     decPos: string;             // col [51]
@@ -70,6 +70,8 @@ export interface ISpecContent {
     controlLevel: string;       // L1-L9 — cols [58..59]
     matchingField: string;      // M1-M9 — cols [60..61]
     fieldNameRange: [number, number];
+    constantValue: string;      // quoted string text (quotes stripped) for C-type constants; cols [20..41]
+    constantTruncated: boolean; // true when the constant continues on the next line (ended with '-')
 }
 
 export interface ESpecContent {
@@ -126,7 +128,9 @@ export interface FieldSymbol extends BaseSymbol {
     toPos: number;
     decPos: string;
     dataType: string;
-    parentDsName: string;   // '' for anonymous DS
+    parentDsName: string;      // '' for standalone constants and anonymous DS
+    constantValue: string;     // non-empty for C-type named constants
+    constantTruncated: boolean;// true when the constant text is incomplete (continued on next line)
 }
 
 export interface SubroutineSymbol extends BaseSymbol {
