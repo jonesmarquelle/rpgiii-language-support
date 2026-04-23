@@ -28,4 +28,4 @@ jobs:
         run: npm run compile
 
       - name: Run tests
-        run: node --require ./out/test/vscodeSetup.js --test "out/test/*.test.js"
+        run: node --require ./out/test/vscodeSetup.js --test out/test/*.test.js
