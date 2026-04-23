@@ -60,7 +60,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
     // ── Hover ────────────────────────────────────────────────────────
     context.subscriptions.push(
-        vscode.languages.registerHoverProvider(selector, new RpgHoverProvider()),
+        vscode.languages.registerHoverProvider(selector, new RpgHoverProvider(externalFields)),
     );
 
     // ── Cache invalidation ───────────────────────────────────────────
