@@ -63,3 +63,8 @@ Shared helpers:
 - **Variables vs. Fields**: Variables are C-spec result fields that have a field length defined (cols 48–50). Fields are I-spec declarations. They are stored in separate symbol table maps.
 - **Multiple variable assignments**: The variables map stores *all* occurrences in source order. Go-to-definition walks the list and picks the last definition at or before the cursor line.
 - **Indicators** (`*IN`, `*IN01`–`*IN99`) and system constants (`*BLANKS`, `*ZERO`, etc.) are explicitly skipped in definition and hover resolution.
+
+## Development Guidelines
+
+- **Testing**: Whenever possible, write tests for new code changes and run them to verify correctness before committing.
+- **Architecture Changes**: When making architectural changes, update CLAUDE.md to reflect the new architecture. Update README.md as necessary to document any user-facing or structural changes.
