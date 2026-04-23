@@ -6,15 +6,18 @@
 
 import * as vscode from 'vscode';
 import { documentCache } from '../parser/rpgDocument';
+import { ExternalFieldIndexService } from '../services/externalFieldIndex';
 import { CSpecContent } from '../types/rpgTypes';
 import { closestVariableDef, resolveSymbolAt } from './providerUtils';
 
 export class RpgHoverProvider implements vscode.HoverProvider {
-    provideHover(
+    constructor(private readonly externalFields?: ExternalFieldIndexService) {}
+
+    async provideHover(
         document: vscode.TextDocument,
         position: vscode.Position,
         _token: vscode.CancellationToken,
-    ): vscode.Hover | null {
+    ): Promise<vscode.Hover | null> {
         const rpgDoc = documentCache.get(document);
         const { symbols } = rpgDoc;
         const lineIdx    = position.line;
@@ -147,6 +150,13 @@ export class RpgHoverProvider implements vscode.HoverProvider {
             }
             if (field.dataType) {
                 md.appendMarkdown(`- Data type: \`${field.dataType}\` (${dataTypeLabel(field.dataType)})`);
+            }
+            if (this.externalFields) {
+                const index = await this.externalFields.getIndex(document);
+                const columnText = index?.fields.get(key)?.[0]?.columnText;
+                if (columnText) {
+                    md.appendMarkdown(`\n- Description: ${columnText}`);
+                }
             }
             return new vscode.Hover(md, hoverRange);
         }
