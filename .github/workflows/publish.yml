@@ -1,17 +1,17 @@
 name: Publish
 
 on:
-  push:
+  pull_request:
+    types: [closed]
     branches:
       - main
-    paths:
-      - 'package.json'
 
 permissions:
   contents: write
 
 jobs:
   publish:
+    if: github.event.pull_request.merged == true && startsWith(github.head_ref, 'chore/bump-version-v')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
