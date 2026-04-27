@@ -7,7 +7,9 @@
 import * as vscode from 'vscode';
 import { documentCache } from '../parser/rpgDocument';
 import { ExternalFieldIndexService } from '../services/externalFieldIndex';
-import { CSpecContent } from '../types/rpgTypes';
+import { CSpecContent, SpecType } from '../types/rpgTypes';
+import { cspecFieldAt } from '../parser/cspecContext';
+import { RPG_RESERVED } from '../parser/opcodes';
 import { closestVariableDef, resolveSymbolAt } from './providerUtils';
 
 export class RpgHoverProvider implements vscode.HoverProvider {
@@ -169,6 +171,38 @@ export class RpgHoverProvider implements vscode.HoverProvider {
             md.appendMarkdown(`- Defined at line ${tag.definitionLine + 1}\n`);
             md.appendMarkdown(`- Target of \`GOTO\` or \`CAB\` operations`);
             return new vscode.Hover(md, hoverRange);
+        }
+
+        // External DB fields — fallback for fields used in C-spec operands that
+        // have no local symbol (externally described file fields with no I-spec).
+        if (
+            this.externalFields &&
+            key.length <= 6 &&
+            !/^\d+$/.test(key) &&
+            !RPG_RESERVED.has(key) &&
+            parsedLine?.specType === SpecType.Calculation &&
+            cspecFieldAt(position.character) !== null
+        ) {
+            const index = await this.externalFields.getIndex(document);
+            const hits = index?.fields.get(key);
+            if (hits && hits.length > 0) {
+                const md = new vscode.MarkdownString();
+                md.appendMarkdown(`**${key}** — Field\n\n`);
+                const fileNames = [...new Set(hits.map(h => h.fileName))];
+                md.appendMarkdown(`- File: ${fileNames.map(f => `\`${f}\``).join(', ')}\n`);
+                const h = hits[0];
+                md.appendMarkdown(`- Length: ${h.length}\n`);
+                if (h.numericScale !== null && h.numericScale > 0) {
+                    md.appendMarkdown(`- Decimal positions: ${h.numericScale}\n`);
+                }
+                if (h.dataType) {
+                    md.appendMarkdown(`- Data type: \`${h.dataType}\`\n`);
+                }
+                if (h.columnText) {
+                    md.appendMarkdown(`- Description: ${h.columnText}`);
+                }
+                return new vscode.Hover(md, hoverRange);
+            }
         }
 
         return null;
