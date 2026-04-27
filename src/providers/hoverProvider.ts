@@ -74,6 +74,25 @@ export class RpgHoverProvider implements vscode.HoverProvider {
             md.appendMarkdown(`- Key list: \`${kfield.parentKListName}\`\n`);
             md.appendMarkdown(`- Position: ${kfield.fieldIndex + 1}\n`);
             md.appendMarkdown(`- Defined at line ${kfield.definitionLine + 1}`);
+            if (this.externalFields) {
+                const index = await this.externalFields.getIndex(document);
+                const hits = index?.fields.get(key);
+                if (hits && hits.length > 0) {
+                    const fileNames = [...new Set(hits.map(h => h.fileName))];
+                    md.appendMarkdown(`\n- File: ${fileNames.map(f => `\`${f}\``).join(', ')}`);
+                    const h = hits[0];
+                    md.appendMarkdown(`\n- Length: ${h.length}`);
+                    if (h.numericScale !== null && h.numericScale > 0) {
+                        md.appendMarkdown(`\n- Decimal positions: ${h.numericScale}`);
+                    }
+                    if (h.dataType) {
+                        md.appendMarkdown(`\n- Data type: \`${h.dataType}\``);
+                    }
+                    if (h.columnText) {
+                        md.appendMarkdown(`\n- Description: ${h.columnText}`);
+                    }
+                }
+            }
             return new vscode.Hover(md, hoverRange);
         }
 
