@@ -7,7 +7,9 @@
 import * as vscode from 'vscode';
 import { documentCache } from '../parser/rpgDocument';
 import { ExternalFieldIndexService } from '../services/externalFieldIndex';
-import { CSpecContent } from '../types/rpgTypes';
+import { CSpecContent, SpecType } from '../types/rpgTypes';
+import { cspecFieldAt } from '../parser/cspecContext';
+import { RPG_RESERVED } from '../parser/opcodes';
 import { closestVariableDef, resolveSymbolAt } from './providerUtils';
 
 export class RpgHoverProvider implements vscode.HoverProvider {
@@ -31,8 +33,7 @@ export class RpgHoverProvider implements vscode.HoverProvider {
         // *IN indicators get a canned tooltip
         if (key.startsWith('*IN')) {
             const md = new vscode.MarkdownString();
-            md.appendMarkdown(`**${key}** — RPG-III Indicator\n\n`);
-            md.appendMarkdown('Numeric indicator field. Can be set via `SETON`/`SETOF` or resulting indicators.');
+            md.appendMarkdown(`**${key}** — Indicator\n\n`);
             return new vscode.Hover(md, hoverRange);
         }
 
@@ -46,7 +47,6 @@ export class RpgHoverProvider implements vscode.HoverProvider {
             md.appendMarkdown(`**${sr.name}** — Subroutine\n\n`);
             md.appendMarkdown(`- Defined at line ${sr.definitionLine + 1}\n`);
             md.appendMarkdown(`- Ends at line ${sr.endLine + 1}\n`);
-            md.appendMarkdown(`- Call with \`EXSR ${sr.name}\``);
             return new vscode.Hover(md, hoverRange);
         }
 
@@ -55,12 +55,10 @@ export class RpgHoverProvider implements vscode.HoverProvider {
         if (klist) {
             const md = new vscode.MarkdownString();
             md.appendMarkdown(`**${klist.name}** — Key List\n\n`);
-            md.appendMarkdown(`- Defined at line ${klist.definitionLine + 1}\n`);
             if (klist.keyFields.length > 0) {
                 const formatted = klist.keyFields.map(f => `\`${f}\``);
                 md.appendMarkdown(`- Key fields: ${formatted.join(', ')}\n`);
             }
-            md.appendMarkdown(`- Used as search argument in \`CHAIN\`, \`SETLL\`, \`SETGT\`, \`READE\``);
             return new vscode.Hover(md, hoverRange);
         }
 
@@ -70,8 +68,25 @@ export class RpgHoverProvider implements vscode.HoverProvider {
             const md = new vscode.MarkdownString();
             md.appendMarkdown(`**${kfield.name}** — Key Field\n\n`);
             md.appendMarkdown(`- Key list: \`${kfield.parentKListName}\`\n`);
-            md.appendMarkdown(`- Position: ${kfield.fieldIndex + 1}\n`);
-            md.appendMarkdown(`- Defined at line ${kfield.definitionLine + 1}`);
+            if (this.externalFields) {
+                const index = await this.externalFields.getIndex(document);
+                const hits = index?.fields.get(key);
+                if (hits && hits.length > 0) {
+                    const fileNames = [...new Set(hits.map(h => h.fileName))];
+                    md.appendMarkdown(`\n- File: ${fileNames.map(f => `\`${f}\``).join(', ')}`);
+                    const h = hits[0];
+                    md.appendMarkdown(`\n- Length: ${h.length}`);
+                    if (h.numericScale !== null && h.numericScale > 0) {
+                        md.appendMarkdown(`\n- Decimal positions: \`${h.numericScale}\``);
+                    }
+                    if (h.dataType) {
+                        md.appendMarkdown(`\n- Data type: \`${h.dataType}\``);
+                    }
+                    if (h.columnText) {
+                        md.appendMarkdown(`\n- Description: \`${h.columnText}\``);
+                    }
+                }
+            }
             return new vscode.Hover(md, hoverRange);
         }
 
@@ -113,7 +128,6 @@ export class RpgHoverProvider implements vscode.HoverProvider {
             const defContent = defParsedLine?.content as CSpecContent | undefined;
             const md = new vscode.MarkdownString();
             md.appendMarkdown(`**${closest.name}** — Variable\n\n`);
-            md.appendMarkdown(`- Declared at line ${closest.definitionLine + 1}`);
             if (defContent?.opcode) {
                 md.appendMarkdown(` (\`${defContent.opcode}\`)`);
             }
@@ -142,11 +156,11 @@ export class RpgHoverProvider implements vscode.HoverProvider {
             if (field.parentDsName) {
                 md.appendMarkdown(`- Data Structure: \`${field.parentDsName}\`\n`);
             }
-            md.appendMarkdown(`- From: ${field.fromPos}, To: ${field.toPos}\n`);
+            md.appendMarkdown(`- From: \`${field.fromPos}\`, To: \`${field.toPos}\`\n`);
             const len = field.toPos - field.fromPos + 1;
-            md.appendMarkdown(`- Length: ${len}\n`);
+            md.appendMarkdown(`- Length: \`${len}\`\n`);
             if (field.decPos) {
-                md.appendMarkdown(`- Decimal positions: ${field.decPos}\n`);
+                md.appendMarkdown(`- Decimal positions: \`${field.decPos}\`\n`);
             }
             if (field.dataType) {
                 md.appendMarkdown(`- Data type: \`${field.dataType}\` (${dataTypeLabel(field.dataType)})`);
@@ -155,7 +169,7 @@ export class RpgHoverProvider implements vscode.HoverProvider {
                 const index = await this.externalFields.getIndex(document);
                 const columnText = index?.fields.get(key)?.[0]?.columnText;
                 if (columnText) {
-                    md.appendMarkdown(`\n- Description: ${columnText}`);
+                    md.appendMarkdown(`\n- Description: \`${columnText}\``);
                 }
             }
             return new vscode.Hover(md, hoverRange);
@@ -167,8 +181,39 @@ export class RpgHoverProvider implements vscode.HoverProvider {
             const md = new vscode.MarkdownString();
             md.appendMarkdown(`**${tag.name}** — Tag / Label\n\n`);
             md.appendMarkdown(`- Defined at line ${tag.definitionLine + 1}\n`);
-            md.appendMarkdown(`- Target of \`GOTO\` or \`CAB\` operations`);
             return new vscode.Hover(md, hoverRange);
+        }
+
+        // External DB fields — fallback for fields used in C-spec operands that
+        // have no local symbol (externally described file fields with no I-spec).
+        if (
+            this.externalFields &&
+            key.length <= 6 &&
+            !/^\d+$/.test(key) &&
+            !RPG_RESERVED.has(key) &&
+            parsedLine?.specType === SpecType.Calculation &&
+            cspecFieldAt(position.character) !== null
+        ) {
+            const index = await this.externalFields.getIndex(document);
+            const hits = index?.fields.get(key);
+            if (hits && hits.length > 0) {
+                const md = new vscode.MarkdownString();
+                md.appendMarkdown(`**${key}** — Field\n\n`);
+                const fileNames = [...new Set(hits.map(h => h.fileName))];
+                md.appendMarkdown(`- File: ${fileNames.map(f => `\`${f}\``).join(', ')}\n`);
+                const h = hits[0];
+                md.appendMarkdown(`- Length: \`${h.length}\`\n`);
+                if (h.numericScale !== null && h.numericScale > 0) {
+                    md.appendMarkdown(`- Decimal positions: \`${h.numericScale}\`\n`);
+                }
+                if (h.dataType) {
+                    md.appendMarkdown(`- Data type: \`${h.dataType}\`\n`);
+                }
+                if (h.columnText) {
+                    md.appendMarkdown(`- Description: \`${h.columnText}\``);
+                }
+                return new vscode.Hover(md, hoverRange);
+            }
         }
 
         return null;
