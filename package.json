@@ -57,6 +57,16 @@
         "path": "./syntaxes/rpg.tmLanguage.json"
       }
     ],
+    "configuration": {
+      "title": "RPG-III Language Support",
+      "properties": {
+        "rpg-iii.hover.enableDbLookup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable external database field lookups in hover tooltips (requires Code for IBM i). Disable if hover is causing performance issues."
+        }
+      }
+    },
     "semanticTokenScopes": [
       {
         "language": "rpg",

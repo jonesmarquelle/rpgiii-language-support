@@ -20,6 +20,9 @@ export class RpgHoverProvider implements vscode.HoverProvider {
         position: vscode.Position,
         _token: vscode.CancellationToken,
     ): Promise<vscode.Hover | null> {
+        const dbLookupEnabled = vscode.workspace
+            .getConfiguration('rpg-iii')
+            .get<boolean>('hover.enableDbLookup', true);
         const rpgDoc = documentCache.get(document);
         const { symbols } = rpgDoc;
         const lineIdx    = position.line;
@@ -68,7 +71,7 @@ export class RpgHoverProvider implements vscode.HoverProvider {
             const md = new vscode.MarkdownString();
             md.appendMarkdown(`**${kfield.name}** — Key Field\n\n`);
             md.appendMarkdown(`- Key list: \`${kfield.parentKListName}\`\n`);
-            if (this.externalFields) {
+            if (dbLookupEnabled && this.externalFields) {
                 const index = await this.externalFields.getIndex(document);
                 const hits = index?.fields.get(key);
                 if (hits && hits.length > 0) {
@@ -165,7 +168,7 @@ export class RpgHoverProvider implements vscode.HoverProvider {
             if (field.dataType) {
                 md.appendMarkdown(`- Data type: \`${field.dataType}\` (${dataTypeLabel(field.dataType)})`);
             }
-            if (this.externalFields) {
+            if (dbLookupEnabled && this.externalFields) {
                 const index = await this.externalFields.getIndex(document);
                 const columnText = index?.fields.get(key)?.[0]?.columnText;
                 if (columnText) {
@@ -187,6 +190,7 @@ export class RpgHoverProvider implements vscode.HoverProvider {
         // External DB fields — fallback for fields used in C-spec operands that
         // have no local symbol (externally described file fields with no I-spec).
         if (
+            dbLookupEnabled &&
             this.externalFields &&
             key.length <= 6 &&
             !/^\d+$/.test(key) &&
